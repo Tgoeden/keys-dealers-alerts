@@ -1,0 +1,138 @@
+{
+  "identity": {
+    "name": "KeyFlow",
+    "tone": "Professional, Efficient, Transparent, Motivating",
+    "aesthetic": "Light, Clean, Minimal, Automotive-Tech",
+    "principles": [
+      "Speed is King: Key checkout must be under 5 seconds",
+      "Data as Art: Sales numbers should feel like a high-score board",
+      "Clarity over Decoration: High contrast for service bay visibility",
+      "Gamification: Sales tracking should feel rewarding"
+    ]
+  },
+  "typography": {
+    "primary_font": "Manrope",
+    "secondary_font": "Inter",
+    "mono_font": "JetBrains Mono",
+    "usage": {
+      "headings": "font-sans font-bold tracking-tight text-slate-900",
+      "body": "font-sans text-slate-600 leading-relaxed",
+      "data_numbers": "font-mono font-medium tracking-tight",
+      "labels": "text-xs font-semibold uppercase tracking-wider text-slate-500"
+    }
+  },
+  "colors": {
+    "palette": {
+      "primary": {
+        "DEFAULT": "#0f172a",
+        "foreground": "#f8fafc"
+      },
+      "secondary": {
+        "DEFAULT": "#f1f5f9",
+        "foreground": "#0f172a"
+      },
+      "accent": {
+        "DEFAULT": "#2563eb",
+        "foreground": "#ffffff"
+      },
+      "success": "#10b981",
+      "warning": "#f59e0b",
+      "error": "#ef4444",
+      "background": "#ffffff",
+      "surface": "#f8fafc",
+      "border": "#e2e8f0"
+    },
+    "usage_rules": [
+      "Use Primary (Slate-900) for main actions and headings",
+      "Use Accent (Blue-600) sparingly for 'Active' states or primary CTAs",
+      "Use Surface (Slate-50) for dashboard backgrounds to reduce eye strain",
+      "Use White for cards and content containers",
+      "NEVER use gradients for backgrounds, only subtle mesh for 'Premium' areas if needed"
+    ]
+  },
+  "layout_strategies": {
+    "dashboard": {
+      "type": "Sidebar + Header + Content",
+      "grid": "grid-cols-12 gap-6",
+      "spacing": "p-6 md:p-8 lg:p-10"
+    },
+    "auth_page": {
+      "type": "Split Screen or Centered Card",
+      "background": "Subtle pattern or high-key photography"
+    },
+    "sales_tracker": {
+      "type": "Bento Grid",
+      "components": [
+        "DailyProgressRing (col-span-4)",
+        "WeeklyTrendChart (col-span-8)",
+        "ActivityFeed (row-span-2 col-span-4)"
+      ]
+    }
+  },
+  "components": {
+    "KeyCard": {
+      "description": "Card representing a vehicle key",
+      "elements": [
+        "Stock Number (Large, Mono)",
+        "Vehicle Model (Medium, Sans)",
+        "Status Badge (Available/Checked Out)",
+        "Timer (if checked out)",
+        "Action Button (Checkout/Return)"
+      ],
+      "styling": "bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all rounded-xl"
+    },
+    "SalesProgressWidget": {
+      "description": "Gamified progress tracker for sales goals",
+      "visuals": "Circular progress bar or 'Race Track' linear bar",
+      "animation": "Smooth fill animation on load"
+    },
+    "SecretLoginTrigger": {
+      "description": "Invisible trigger on the Logo",
+      "interaction": "5 rapid clicks opens PIN modal",
+      "visual": "No visual indicator (cursor-pointer only)"
+    },
+    "BayGrid": {
+      "description": "Visual representation of RV Service Bays",
+      "layout": "Grid of boxes, occupied bays show unit info",
+      "interaction": "Click to view details or move unit"
+    }
+  },
+  "images": {
+    "login_background": {
+      "url": "https://images.pexels.com/photos/7144261/pexels-photo-7144261.jpeg",
+      "alt": "Bright modern dealership showroom",
+      "usage": "Login page background with overlay"
+    },
+    "rv_hero": {
+      "url": "https://images.pexels.com/photos/35462883/pexels-photo-35462883.jpeg",
+      "alt": "Luxury RV exterior",
+      "usage": "RV Dashboard section header or card background"
+    },
+    "key_icon": {
+      "url": "https://images.pexels.com/photos/8249282/pexels-photo-8249282.jpeg",
+      "alt": "Car keys close up",
+      "usage": "Key Management section empty state or hero"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-200 ease-in-out",
+    "hover_effects": "hover:-translate-y-1 hover:shadow-lg",
+    "modal_entrance": "animate-in fade-in zoom-in-95 duration-200"
+  },
+  "instructions_to_main_agent": [
+    "Implement the 'Secret Owner Access' logic in the Sidebar or Header logo component.",
+    "Use 'recharts' for the Sales Tracker visualizations.",
+    "Ensure the 'Key Checkout' modal is keyboard accessible for speed.",
+    "For the RV Service Bay, create a visual grid component where bays can be 'occupied'.",
+    "Use the provided Pexels images for the Login page and Dashboard headers to add visual polish.",
+    "Strictly follow the 'Light, Clean, Minimal' theme. Avoid dark mode unless explicitly toggled.",
+    "Add 'data-testid' to all interactive elements."
+  ],
+  "universal_guidelines": [
+    "Do not use generic centered layouts.",
+    "Create depth through layered design elements.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur) for modals and sticky headers.",
+    "Every interaction needs micro-animations.",
+    "Use 2-3x more spacing than feels comfortable."
+  ]
+}
