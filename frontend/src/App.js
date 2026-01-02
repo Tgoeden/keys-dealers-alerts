@@ -1,53 +1,148 @@
-import { useEffect } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./lib/auth";
+import { Toaster } from "./components/ui/sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Pages
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Keys from "./pages/Keys";
+import SalesTracker from "./pages/SalesTracker";
+import Users from "./pages/Users";
+import Dealerships from "./pages/Dealerships";
+import ServiceBays from "./pages/ServiceBays";
+import TimeAlerts from "./pages/TimeAlerts";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+// Protected Route wrapper
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-slate-900 rounded-xl" />
+          <div className="h-4 w-24 bg-slate-200 rounded" />
+        </div>
+      </div>
+    );
+  }
 
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
 };
+
+// Public Route wrapper (redirects to dashboard if logged in)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-slate-900 rounded-xl" />
+          <div className="h-4 w-24 bg-slate-200 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+
+      {/* Protected routes */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/keys"
+        element={
+          <ProtectedRoute>
+            <Keys />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales-tracker"
+        element={
+          <ProtectedRoute>
+            <SalesTracker />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dealerships"
+        element={
+          <ProtectedRoute>
+            <Dealerships />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/service-bays"
+        element={
+          <ProtectedRoute>
+            <ServiceBays />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/alerts"
+        element={
+          <ProtectedRoute>
+            <TimeAlerts />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Default redirect */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}
 
 function App() {
   return (
-    <div className="App">
+    <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
+        <AppRoutes />
+        <Toaster position="top-right" richColors />
       </BrowserRouter>
-    </div>
+    </AuthProvider>
   );
 }
 
