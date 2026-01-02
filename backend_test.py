@@ -238,13 +238,17 @@ class KeyFlowAPITester:
 
     def test_admin_login(self):
         """Test admin login with the credentials created during dealership creation"""
+        if not hasattr(self, 'admin_email'):
+            print("❌ No admin email available for login test")
+            return False
+            
         success, response = self.run_test(
             "Admin Login",
             "POST",
             "auth/login",
             200,
             data={
-                "email": "admin@testdealership.com",
+                "email": self.admin_email,
                 "password": "admin123"
             }
         )
