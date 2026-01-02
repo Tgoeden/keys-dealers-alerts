@@ -122,14 +122,12 @@ class KeyFlowAPITester:
             print("❌ No demo token available for demo limits test")
             return False
             
-        # Use demo token for this test
-        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.demo_token}'}
-        
         success, response = self.run_test(
             "Demo Limits",
             "GET",
             "demo-limits",
-            200
+            200,
+            use_demo_token=True
         )
         
         if success and response.get('is_demo'):
