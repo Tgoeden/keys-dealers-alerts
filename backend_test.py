@@ -80,17 +80,53 @@ class KeyFlowAPITester:
         return success
 
     def test_owner_login(self):
-        """Test owner login with PIN"""
+        """Test owner login with PIN 9988"""
         success, response = self.run_test(
             "Owner Login",
             "POST",
             "auth/owner-login",
             200,
-            data={"pin": "1234"}
+            data={"pin": "9988"}
         )
         if success and 'access_token' in response:
             self.owner_token = response['access_token']
             print(f"   Owner token obtained: {self.owner_token[:20]}...")
+            return True
+        return False
+
+    def test_demo_login(self):
+        """Test demo login (no credentials needed)"""
+        success, response = self.run_test(
+            "Demo Login",
+            "POST",
+            "auth/demo-login",
+            200,
+            data={}  # No credentials needed
+        )
+        if success and 'access_token' in response:
+            self.demo_token = response['access_token']
+            print(f"   Demo token obtained: {self.demo_token[:20]}...")
+            return True
+        return False
+
+    def test_demo_limits(self):
+        """Test demo limits endpoint"""
+        if not hasattr(self, 'demo_token') or not self.demo_token:
+            print("❌ No demo token available for demo limits test")
+            return False
+            
+        # Use demo token for this test
+        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {self.demo_token}'}
+        
+        success, response = self.run_test(
+            "Demo Limits",
+            "GET",
+            "demo-limits",
+            200
+        )
+        
+        if success and response.get('is_demo'):
+            print(f"   Demo limits: {response.get('current_keys', 0)}/{response.get('max_keys', 0)} keys, {response.get('current_users', 0)}/{response.get('max_users', 0)} users")
             return True
         return False
 
