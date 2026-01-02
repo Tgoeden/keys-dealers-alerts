@@ -370,7 +370,8 @@ class KeyFlowAPITester:
         if not hasattr(self, 'rv_dealership_id'):
             print("❌ No RV dealership available for RV key test")
             return False
-            
+        
+        # First login as owner to create RV key (since we don't have RV admin login set up)
         success, response = self.run_test(
             "Create RV Key without VIN",
             "POST",
@@ -383,11 +384,18 @@ class KeyFlowAPITester:
                 "vehicle_model": "Minnie Winnie",
                 "condition": "new",
                 "dealership_id": self.rv_dealership_id
-            }
+            },
+            use_owner_token=True  # Use owner token instead of admin token
         )
         if success and 'id' in response:
             print(f"   RV Key created without VIN: {response['id']}")
-            return True
+            # Verify that VIN is None or empty
+            if response.get('vehicle_vin') is None:
+                print(f"   ✅ RV Key correctly created without VIN")
+                return True
+            else:
+                print(f"   ❌ RV Key unexpectedly has VIN: {response.get('vehicle_vin')}")
+                return False
         return False
 
     def test_checkout_key(self):
