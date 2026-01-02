@@ -228,43 +228,23 @@ class KeyFlowAPITester:
             self.tests_run += 1
             return False
 
-    def test_user_registration(self):
-        """Test user registration"""
+    def test_admin_login(self):
+        """Test admin login with the credentials created during dealership creation"""
         success, response = self.run_test(
-            "User Registration",
+            "Admin Login",
             "POST",
-            "auth/register",
+            "auth/login",
             200,
             data={
-                "email": "admin@dealership.com",
-                "password": "password123",
-                "name": "Test Admin",
-                "role": "dealership_admin",
-                "dealership_id": self.dealership_id
+                "email": "admin@testdealership.com",
+                "password": "admin123"
             }
         )
         if success and 'access_token' in response:
             self.token = response['access_token']
             self.user_id = response['user']['id']
-            print(f"   User registered: {self.user_id}")
-            return True
-        return False
-
-    def test_user_login(self):
-        """Test user login"""
-        success, response = self.run_test(
-            "User Login",
-            "POST",
-            "auth/login",
-            200,
-            data={
-                "email": "admin@dealership.com",
-                "password": "password123"
-            }
-        )
-        if success and 'access_token' in response:
-            self.token = response['access_token']
-            print(f"   Login successful, token: {self.token[:20]}...")
+            print(f"   Admin login successful, token: {self.token[:20]}...")
+            print(f"   Admin user ID: {self.user_id}")
             return True
         return False
 
