@@ -4,19 +4,22 @@ import { useAuth } from '../lib/auth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Key, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Play } from 'lucide-react';
 import { toast } from 'sonner';
+
+const LOGO_URL = "https://customer-assets.emergentagent.com/job_keytrack-2/artifacts/jpgdi733_1000023991.jpg";
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState('');
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [showOwnerModal, setShowOwnerModal] = useState(false);
 
-  const { login, ownerLogin } = useAuth();
+  const { login, ownerLogin, demoLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogoClick = () => {
@@ -47,6 +50,20 @@ const Login = () => {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setDemoLoading(true);
+    setError('');
+    try {
+      await demoLogin();
+      toast.success('Welcome to the demo! Explore KeyFlow features.');
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Demo login failed');
+    } finally {
+      setDemoLoading(false);
+    }
+  };
+
   const handleOwnerLogin = async (pin) => {
     try {
       await ownerLogin(pin);
@@ -63,21 +80,20 @@ const Login = () => {
       <div className="auth-card animate-fade-in">
         {/* Logo */}
         <div
-          className="flex items-center justify-center gap-3 mb-8 cursor-pointer select-none"
+          className="flex items-center justify-center mb-8 cursor-pointer select-none"
           onClick={handleLogoClick}
           data-testid="login-logo"
         >
-          <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center">
-            <Key className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight text-slate-900">
-            KeyFlow
-          </span>
+          <img 
+            src={LOGO_URL} 
+            alt="KeyFlow" 
+            className="h-20 w-auto object-contain"
+          />
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome back</h1>
-          <p className="text-slate-500">Sign in to your account to continue</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome to KeyFlow</h1>
+          <p className="text-slate-500">Sign in to manage your dealership keys</p>
         </div>
 
         {error && (
@@ -86,6 +102,33 @@ const Login = () => {
             <span className="text-sm">{error}</span>
           </div>
         )}
+
+        {/* Demo Button - Prominent */}
+        <div className="mb-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-14 text-base border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800"
+            onClick={handleDemoLogin}
+            disabled={demoLoading}
+            data-testid="demo-login-btn"
+          >
+            <Play className="w-5 h-5 mr-2" />
+            {demoLoading ? 'Starting Demo...' : 'Try Demo (No Login Required)'}
+          </Button>
+          <p className="text-xs text-slate-500 text-center mt-2">
+            Limited to 4 keys and 1 user • Full admin access
+          </p>
+        </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-slate-200" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-4 text-slate-500">Or sign in with credentials</span>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
@@ -140,9 +183,9 @@ const Login = () => {
         </form>
 
         <p className="text-center text-slate-500 text-sm mt-6">
-          Don't have an account?{' '}
+          Need an account?{' '}
           <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            Contact admin
+            Contact your administrator
           </Link>
         </p>
       </div>
