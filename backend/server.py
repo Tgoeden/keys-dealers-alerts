@@ -27,7 +27,11 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 24
 
 # Owner PIN (stored securely in env)
-OWNER_PIN = os.environ.get('OWNER_PIN', '1234')
+OWNER_PIN = os.environ.get('OWNER_PIN', '9988')
+
+# Demo account limits
+DEMO_MAX_KEYS = 4
+DEMO_MAX_USERS = 1
 
 app = FastAPI(title="KeyFlow API")
 api_router = APIRouter(prefix="/api")
@@ -351,6 +355,84 @@ async def get_me(user: dict = Depends(get_current_user)):
         created_at=user["created_at"]
     )
 
+@api_router.post("/auth/demo-login", response_model=TokenResponse)
+async def demo_login():
+    """Demo login - creates or retrieves demo account with limited features"""
+    # Check if demo dealership exists
+    demo_dealership = await db.dealerships.find_one({"name": "Demo Dealership", "is_demo": True}, {"_id": 0})
+    
+    if not demo_dealership:
+        # Create demo dealership
+        dealership_id = str(uuid.uuid4())
+        demo_dealership = {
+            "id": dealership_id,
+            "name": "Demo Dealership",
+            "dealership_type": "automotive",
+            "address": "123 Demo Street",
+            "phone": "(555) 000-0000",
+            "service_bays": 0,
+            "is_active": True,
+            "is_demo": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.dealerships.insert_one(demo_dealership)
+    
+    # Check if demo user exists
+    demo_user = await db.users.find_one({"email": "demo@keyflow.app", "is_demo": True}, {"_id": 0})
+    
+    if not demo_user:
+        # Create demo user
+        user_id = str(uuid.uuid4())
+        demo_user = {
+            "id": user_id,
+            "email": "demo@keyflow.app",
+            "password": hash_password("demo123"),
+            "name": "Demo Admin",
+            "role": UserRole.DEALERSHIP_ADMIN,
+            "dealership_id": demo_dealership["id"],
+            "is_demo": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(demo_user)
+    
+    token = create_token(demo_user["id"], demo_user["email"], demo_user["role"], demo_user.get("dealership_id"))
+    user_response = UserResponse(
+        id=demo_user["id"],
+        email=demo_user["email"],
+        name=demo_user["name"],
+        role=demo_user["role"],
+        dealership_id=demo_user.get("dealership_id"),
+        created_at=demo_user["created_at"]
+    )
+    return TokenResponse(access_token=token, user=user_response)
+
+@api_router.get("/demo-limits")
+async def get_demo_limits(user: dict = Depends(get_current_user)):
+    """Get demo account limits and current usage"""
+    if not user.get("is_demo"):
+        return {"is_demo": False}
+    
+    dealership_id = user.get("dealership_id")
+    
+    # Count current keys
+    key_count = await db.keys.count_documents({"dealership_id": dealership_id, "is_active": True})
+    
+    # Count current users (excluding the demo admin)
+    user_count = await db.users.count_documents({
+        "dealership_id": dealership_id, 
+        "is_demo": {"$ne": True}
+    })
+    
+    return {
+        "is_demo": True,
+        "max_keys": DEMO_MAX_KEYS,
+        "current_keys": key_count,
+        "can_add_keys": key_count < DEMO_MAX_KEYS,
+        "max_users": DEMO_MAX_USERS,
+        "current_users": user_count,
+        "can_add_users": user_count < DEMO_MAX_USERS
+    }
+
 # ============ DEALERSHIP ENDPOINTS ============
 
 @api_router.post("/dealerships", response_model=DealershipResponse)
@@ -412,6 +494,15 @@ async def delete_dealership(dealership_id: str, user: dict = Depends(require_rol
 async def create_user(data: UserCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
     if user["role"] == UserRole.DEALERSHIP_ADMIN and data.dealership_id != user["dealership_id"]:
         raise HTTPException(status_code=403, detail="Cannot create users for other dealerships")
+    
+    # Check demo limits
+    if user.get("is_demo"):
+        user_count = await db.users.count_documents({
+            "dealership_id": data.dealership_id,
+            "is_demo": {"$ne": True}
+        })
+        if user_count >= DEMO_MAX_USERS:
+            raise HTTPException(status_code=403, detail=f"Demo account limited to {DEMO_MAX_USERS} additional user. Upgrade to add more!")
     
     existing = await db.users.find_one({"email": data.email})
     if existing:
@@ -477,6 +568,12 @@ async def delete_user(user_id: str, user: dict = Depends(require_role(UserRole.O
 async def create_key(data: KeyCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
     if user["role"] == UserRole.DEALERSHIP_ADMIN and data.dealership_id != user["dealership_id"]:
         raise HTTPException(status_code=403, detail="Cannot create keys for other dealerships")
+    
+    # Check demo limits
+    if user.get("is_demo"):
+        key_count = await db.keys.count_documents({"dealership_id": data.dealership_id, "is_active": True})
+        if key_count >= DEMO_MAX_KEYS:
+            raise HTTPException(status_code=403, detail=f"Demo account limited to {DEMO_MAX_KEYS} keys. Upgrade to add more!")
     
     key_id = str(uuid.uuid4())
     doc = {
