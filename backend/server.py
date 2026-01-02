@@ -87,6 +87,10 @@ class DealershipCreate(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     service_bays: int = 0  # For RV dealerships
+    # Admin account for new dealership
+    admin_email: Optional[str] = None
+    admin_password: Optional[str] = None
+    admin_name: Optional[str] = None
 
 class DealershipUpdate(BaseModel):
     name: Optional[str] = None
@@ -111,6 +115,10 @@ class KeyStatus:
     AVAILABLE = "available"
     CHECKED_OUT = "checked_out"
 
+class KeyCondition:
+    NEW = "new"
+    USED = "used"
+
 class CheckoutReason:
     TEST_DRIVE = "test_drive"
     SERVICE_LOANER = "service_loaner"
@@ -120,24 +128,30 @@ class CheckoutReason:
 
 class KeyCreate(BaseModel):
     stock_number: str
-    vehicle_model: str
     vehicle_year: Optional[int] = None
-    vehicle_vin: Optional[str] = None
+    vehicle_make: Optional[str] = None
+    vehicle_model: str
+    vehicle_vin: Optional[str] = None  # Optional - not required for RV
+    condition: str = KeyCondition.NEW  # new or used
     dealership_id: str
 
 class KeyUpdate(BaseModel):
     stock_number: Optional[str] = None
-    vehicle_model: Optional[str] = None
     vehicle_year: Optional[int] = None
+    vehicle_make: Optional[str] = None
+    vehicle_model: Optional[str] = None
     vehicle_vin: Optional[str] = None
+    condition: Optional[str] = None
     is_active: Optional[bool] = None
 
 class KeyResponse(BaseModel):
     id: str
     stock_number: str
-    vehicle_model: str
     vehicle_year: Optional[int] = None
+    vehicle_make: Optional[str] = None
+    vehicle_model: str
     vehicle_vin: Optional[str] = None
+    condition: str = KeyCondition.NEW
     dealership_id: str
     status: str
     current_checkout: Optional[dict] = None
