@@ -15,7 +15,10 @@ import {
   Wrench,
 } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
+
+const LOGO_URL = "https://customer-assets.emergentagent.com/job_keytrack-2/artifacts/jpgdi733_1000023991.jpg";
 
 const Logo = ({ onClick }) => {
   return (
@@ -23,18 +26,17 @@ const Logo = ({ onClick }) => {
       onClick={onClick}
       className="flex items-center gap-3 cursor-pointer select-none"
     >
-      <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center">
-        <Key className="w-5 h-5 text-white" />
-      </div>
-      <span className="text-xl font-bold tracking-tight text-slate-900">
-        KeyFlow
-      </span>
+      <img 
+        src={LOGO_URL} 
+        alt="KeyFlow" 
+        className="h-10 w-auto object-contain"
+      />
     </div>
   );
 };
 
 export const Sidebar = () => {
-  const { user, logout, isOwner, isDealershipAdmin } = useAuth();
+  const { user, logout, isOwner, isDealershipAdmin, isDemo } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
@@ -138,6 +140,11 @@ export const Sidebar = () => {
         {/* Logo */}
         <div className="p-6 border-b border-slate-100">
           <Logo onClick={handleLogoClick} />
+          {isDemo && (
+            <Badge className="mt-3 w-full justify-center bg-amber-100 text-amber-700 hover:bg-amber-100">
+              Demo Mode • Limited Features
+            </Badge>
+          )}
         </div>
 
         {/* Navigation */}
