@@ -250,13 +250,15 @@ class KeyFlowAPITester:
 
     def test_create_user_under_dealership(self):
         """Create a regular user under the dealership"""
+        import time
+        timestamp = int(time.time())
         success, response = self.run_test(
             "Create User Under Dealership",
             "POST",
             "users",
             200,
             data={
-                "email": "user@dealership.com",
+                "email": f"user{timestamp}@dealership.com",
                 "password": "password123",
                 "name": "Test User",
                 "role": "user",
