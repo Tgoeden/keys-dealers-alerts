@@ -285,24 +285,104 @@ class KeyFlowAPITester:
         )
         return success
 
-    def test_create_key(self):
-        """Create a test key"""
+    def test_create_key_with_new_fields(self):
+        """Create a test key with new condition and vehicle_make fields"""
         success, response = self.run_test(
-            "Create Key",
+            "Create Key with New Fields",
             "POST",
             "keys",
             200,
             data={
                 "stock_number": "TEST-001",
-                "vehicle_model": "2024 Ford F-150",
                 "vehicle_year": 2024,
+                "vehicle_make": "Ford",
+                "vehicle_model": "F-150",
                 "vehicle_vin": "1FTFW1ET5DFC12345",
+                "condition": "new",
                 "dealership_id": self.dealership_id
             }
         )
         if success and 'id' in response:
             self.key_id = response['id']
             print(f"   Key created: {self.key_id}")
+            # Verify the response contains the new fields
+            if response.get('condition') == 'new' and response.get('vehicle_make') == 'Ford':
+                print(f"   ✅ New fields verified: condition={response.get('condition')}, make={response.get('vehicle_make')}")
+                return True
+            else:
+                print(f"   ❌ New fields missing or incorrect in response")
+                return False
+        return False
+
+    def test_create_used_key(self):
+        """Create a used key to test condition field"""
+        success, response = self.run_test(
+            "Create Used Key",
+            "POST",
+            "keys",
+            200,
+            data={
+                "stock_number": "USED-001",
+                "vehicle_year": 2020,
+                "vehicle_make": "Toyota",
+                "vehicle_model": "Camry",
+                "vehicle_vin": "4T1BF1FK5CU123456",
+                "condition": "used",
+                "dealership_id": self.dealership_id
+            }
+        )
+        if success and response.get('condition') == 'used':
+            print(f"   ✅ Used condition verified")
+            return True
+        return False
+
+    def test_create_rv_dealership(self):
+        """Create an RV dealership to test RV-specific features"""
+        success, response = self.run_test(
+            "Create RV Dealership",
+            "POST",
+            "dealerships",
+            200,
+            data={
+                "name": "Test RV Dealership",
+                "dealership_type": "rv",
+                "address": "789 RV Lane",
+                "phone": "555-0789",
+                "service_bays": 10,
+                "admin_email": "admin@rvdealership.com",
+                "admin_password": "admin123",
+                "admin_name": "RV Admin"
+            },
+            use_owner_token=True
+        )
+        if success and 'id' in response:
+            self.rv_dealership_id = response['id']
+            print(f"   RV Dealership created: {self.rv_dealership_id}")
+            return True
+        return False
+
+    def test_create_rv_key_without_vin(self):
+        """Create an RV key without VIN to test RV-specific behavior"""
+        if not hasattr(self, 'rv_dealership_id'):
+            print("❌ No RV dealership available for RV key test")
+            return False
+            
+        success, response = self.run_test(
+            "Create RV Key without VIN",
+            "POST",
+            "keys",
+            200,
+            data={
+                "stock_number": "RV-001",
+                "vehicle_year": 2024,
+                "vehicle_make": "Winnebago",
+                "vehicle_model": "Minnie Winnie",
+                "condition": "new",
+                "dealership_id": self.rv_dealership_id
+            }
+        )
+        if success and 'id' in response:
+            print(f"   RV Key created without VIN: {response['id']}")
             return True
         return False
 
