@@ -284,7 +284,7 @@ const Dealerships = () => {
 const DealershipModal = ({ open, onClose, onSubmit, dealership }) => {
   const [form, setForm] = useState({
     name: '',
-    dealership_type: 'automotive',
+    dealership_type: '',
     address: '',
     phone: '',
     service_bays: 0,
@@ -303,7 +303,7 @@ const DealershipModal = ({ open, onClose, onSubmit, dealership }) => {
     } else {
       setForm({
         name: '',
-        dealership_type: 'automotive',
+        dealership_type: '',
         address: '',
         phone: '',
         service_bays: 0,
@@ -313,6 +313,9 @@ const DealershipModal = ({ open, onClose, onSubmit, dealership }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.dealership_type) {
+      return;
+    }
     setLoading(true);
     await onSubmit({
       ...form,
@@ -328,6 +331,79 @@ const DealershipModal = ({ open, onClose, onSubmit, dealership }) => {
           <DialogTitle>{dealership ? 'Edit' : 'Add'} Dealership</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Dealership Type Selection - FIRST and PROMINENT */}
+          {!dealership && (
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">What type of dealership is this? *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, dealership_type: 'automotive', service_bays: 0 })}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    form.dealership_type === 'automotive'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                  data-testid="type-automotive"
+                >
+                  <Car className={`w-8 h-8 mx-auto mb-2 ${
+                    form.dealership_type === 'automotive' ? 'text-blue-600' : 'text-slate-400'
+                  }`} />
+                  <p className={`font-semibold ${
+                    form.dealership_type === 'automotive' ? 'text-blue-700' : 'text-slate-700'
+                  }`}>Automotive</p>
+                  <p className="text-xs text-slate-500 mt-1">Cars, Trucks, SUVs</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, dealership_type: 'rv', service_bays: 10 })}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    form.dealership_type === 'rv'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                  data-testid="type-rv"
+                >
+                  <Truck className={`w-8 h-8 mx-auto mb-2 ${
+                    form.dealership_type === 'rv' ? 'text-amber-600' : 'text-slate-400'
+                  }`} />
+                  <p className={`font-semibold ${
+                    form.dealership_type === 'rv' ? 'text-amber-700' : 'text-slate-700'
+                  }`}>RV Dealership</p>
+                  <p className="text-xs text-slate-500 mt-1">With Service Bays</p>
+                </button>
+              </div>
+              {form.dealership_type === 'rv' && (
+                <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                  <strong>RV Mode:</strong> Enables service bay tracking. Checkout reasons include "Service (Assign to Bay)" option.
+                </p>
+              )}
+              {form.dealership_type === 'automotive' && (
+                <p className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+                  <strong>Auto Mode:</strong> Standard checkout reasons: Test Drive, Service Loaner, Extended Test Drive, Show/Move.
+                </p>
+              )}
+            </div>
+          )}
+          
+          {dealership && (
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={form.dealership_type}
+                onValueChange={(v) => setForm({ ...form, dealership_type: v })}
+              >
+                <SelectTrigger data-testid="dealership-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="automotive">Automotive</SelectItem>
+                  <SelectItem value="rv">RV Dealership</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label>Dealership Name *</Label>
             <Input
@@ -337,21 +413,6 @@ const DealershipModal = ({ open, onClose, onSubmit, dealership }) => {
               required
               data-testid="dealership-name"
             />
-          </div>
-          <div className="space-y-2">
-            <Label>Type *</Label>
-            <Select
-              value={form.dealership_type}
-              onValueChange={(v) => setForm({ ...form, dealership_type: v })}
-            >
-              <SelectTrigger data-testid="dealership-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="automotive">Automotive</SelectItem>
-                <SelectItem value="rv">RV Dealership</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div className="space-y-2">
             <Label>Address</Label>
@@ -388,7 +449,12 @@ const DealershipModal = ({ open, onClose, onSubmit, dealership }) => {
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1" disabled={loading} data-testid="dealership-submit">
+            <Button 
+              type="submit" 
+              className="flex-1" 
+              disabled={loading || !form.dealership_type} 
+              data-testid="dealership-submit"
+            >
               {loading ? 'Saving...' : dealership ? 'Update' : 'Create'}
             </Button>
           </div>
