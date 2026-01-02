@@ -1,15 +1,17 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+from pydantic import BaseModel, Field, EmailStr
+from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
-
+from datetime import datetime, timezone, timedelta
+import jwt
+import bcrypt
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -19,54 +21,1023 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
+# JWT Configuration
+JWT_SECRET = os.environ.get('JWT_SECRET', 'keyflow-secret-key-2024')
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION_HOURS = 24
 
-# Create a router with the /api prefix
+# Owner PIN (stored securely in env)
+OWNER_PIN = os.environ.get('OWNER_PIN', '1234')
+
+app = FastAPI(title="KeyFlow API")
 api_router = APIRouter(prefix="/api")
+security = HTTPBearer()
 
+# Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
+# ============ MODELS ============
+
+class UserRole:
+    OWNER = "owner"
+    DEALERSHIP_ADMIN = "dealership_admin"
+    USER = "user"
+
+class DealershipType:
+    AUTOMOTIVE = "automotive"
+    RV = "rv"
+
+# Auth Models
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    role: str = UserRole.USER
+    dealership_id: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class OwnerLogin(BaseModel):
+    pin: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: str
+    dealership_id: Optional[str] = None
+    created_at: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+# Dealership Models
+class DealershipCreate(BaseModel):
+    name: str
+    dealership_type: str = DealershipType.AUTOMOTIVE
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    service_bays: int = 0  # For RV dealerships
+
+class DealershipUpdate(BaseModel):
+    name: Optional[str] = None
+    dealership_type: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    service_bays: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class DealershipResponse(BaseModel):
+    id: str
+    name: str
+    dealership_type: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    service_bays: int = 0
+    is_active: bool = True
+    created_at: str
+
+# Key Models
+class KeyStatus:
+    AVAILABLE = "available"
+    CHECKED_OUT = "checked_out"
+
+class CheckoutReason:
+    TEST_DRIVE = "test_drive"
+    SERVICE_LOANER = "service_loaner"
+    EXTENDED_TEST_DRIVE = "extended_test_drive"
+    SHOW_MOVE = "show_move"
+    SERVICE = "service"  # For RV - includes bay info
+
+class KeyCreate(BaseModel):
+    stock_number: str
+    vehicle_model: str
+    vehicle_year: Optional[int] = None
+    vehicle_vin: Optional[str] = None
+    dealership_id: str
+
+class KeyUpdate(BaseModel):
+    stock_number: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    vehicle_year: Optional[int] = None
+    vehicle_vin: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class KeyResponse(BaseModel):
+    id: str
+    stock_number: str
+    vehicle_model: str
+    vehicle_year: Optional[int] = None
+    vehicle_vin: Optional[str] = None
+    dealership_id: str
+    status: str
+    current_checkout: Optional[dict] = None
+    is_active: bool = True
+    created_at: str
+
+class KeyCheckoutRequest(BaseModel):
+    reason: str
+    notes: Optional[str] = None
+    service_bay: Optional[int] = None  # For RV service
+
+class KeyReturnRequest(BaseModel):
+    notes: Optional[str] = None
+    new_bay: Optional[int] = None  # For RV - move to new bay before return
+
+class BayMoveRequest(BaseModel):
+    new_bay: int
+
+# Time Alert Models
+class TimeAlertCreate(BaseModel):
+    dealership_id: str
+    alert_minutes: int = 30
+    is_active: bool = True
+
+class TimeAlertResponse(BaseModel):
+    id: str
+    dealership_id: str
+    alert_minutes: int
+    is_active: bool
+
+# Sales Tracker Models
+class SalesGoalCreate(BaseModel):
+    year: int
+    yearly_sales_target: int
+    yearly_leads_target: int = 0
+    yearly_writeups_target: int = 0
+    yearly_appointments_target: int = 0
+
+class SalesGoalResponse(BaseModel):
+    id: str
+    user_id: str
+    year: int
+    yearly_sales_target: int
+    yearly_leads_target: int
+    yearly_writeups_target: int
+    yearly_appointments_target: int
+    created_at: str
+
+class DailyActivityCreate(BaseModel):
+    date: str  # YYYY-MM-DD
+    leads_walk_in: int = 0
+    leads_phone: int = 0
+    leads_internet: int = 0
+    writeups: int = 0
+    sales: int = 0
+    appointments_scheduled: int = 0
+    appointments_shown: int = 0
+    other_activities: Optional[str] = None
+    notes: Optional[str] = None
+
+class DailyActivityResponse(BaseModel):
+    id: str
+    user_id: str
+    date: str
+    leads_walk_in: int
+    leads_phone: int
+    leads_internet: int
+    writeups: int
+    sales: int
+    appointments_scheduled: int
+    appointments_shown: int
+    other_activities: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: str
+
+class SalesProgressResponse(BaseModel):
+    goal: Optional[SalesGoalResponse] = None
+    total_leads: int = 0
+    total_writeups: int = 0
+    total_sales: int = 0
+    total_appointments: int = 0
+    sales_progress_percent: float = 0.0
+    leads_progress_percent: float = 0.0
+    writeups_progress_percent: float = 0.0
+    appointments_progress_percent: float = 0.0
+    days_elapsed: int = 0
+    days_remaining: int = 0
+    projected_annual_sales: int = 0
+    goal_achievement_probability: float = 0.0
+
+# ============ AUTH HELPERS ============
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_token(user_id: str, email: str, role: str, dealership_id: Optional[str] = None) -> str:
+    payload = {
+        "user_id": user_id,
+        "email": email,
+        "role": role,
+        "dealership_id": dealership_id,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+def require_role(*roles):
+    async def role_checker(user: dict = Depends(get_current_user)):
+        if user["role"] not in roles:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return user
+    return role_checker
+
+# ============ AUTH ENDPOINTS ============
+
+@api_router.post("/auth/register", response_model=TokenResponse)
+async def register(data: UserCreate):
+    existing = await db.users.find_one({"email": data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class StatusCheckCreate(BaseModel):
-    client_name: str
-
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": data.email,
+        "password": hash_password(data.password),
+        "name": data.name,
+        "role": data.role,
+        "dealership_id": data.dealership_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
     
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+    token = create_token(user_id, data.email, data.role, data.dealership_id)
+    user_response = UserResponse(
+        id=user_id,
+        email=data.email,
+        name=data.name,
+        role=data.role,
+        dealership_id=data.dealership_id,
+        created_at=user_doc["created_at"]
+    )
+    return TokenResponse(access_token=token, user=user_response)
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+@api_router.post("/auth/login", response_model=TokenResponse)
+async def login(data: UserLogin):
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user or not verify_password(data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+    token = create_token(user["id"], user["email"], user["role"], user.get("dealership_id"))
+    user_response = UserResponse(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        role=user["role"],
+        dealership_id=user.get("dealership_id"),
+        created_at=user["created_at"]
+    )
+    return TokenResponse(access_token=token, user=user_response)
 
-# Include the router in the main app
+@api_router.post("/auth/owner-login", response_model=TokenResponse)
+async def owner_login(data: OwnerLogin):
+    if data.pin != OWNER_PIN:
+        raise HTTPException(status_code=401, detail="Invalid PIN")
+    
+    # Check if owner exists, create if not
+    owner = await db.users.find_one({"role": UserRole.OWNER}, {"_id": 0})
+    if not owner:
+        owner_id = str(uuid.uuid4())
+        owner = {
+            "id": owner_id,
+            "email": "owner@keyflow.app",
+            "password": hash_password("owner"),
+            "name": "System Owner",
+            "role": UserRole.OWNER,
+            "dealership_id": None,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.users.insert_one(owner)
+    
+    token = create_token(owner["id"], owner["email"], owner["role"])
+    user_response = UserResponse(
+        id=owner["id"],
+        email=owner["email"],
+        name=owner["name"],
+        role=owner["role"],
+        dealership_id=None,
+        created_at=owner["created_at"]
+    )
+    return TokenResponse(access_token=token, user=user_response)
+
+@api_router.get("/auth/me", response_model=UserResponse)
+async def get_me(user: dict = Depends(get_current_user)):
+    return UserResponse(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        role=user["role"],
+        dealership_id=user.get("dealership_id"),
+        created_at=user["created_at"]
+    )
+
+# ============ DEALERSHIP ENDPOINTS ============
+
+@api_router.post("/dealerships", response_model=DealershipResponse)
+async def create_dealership(data: DealershipCreate, user: dict = Depends(require_role(UserRole.OWNER))):
+    dealership_id = str(uuid.uuid4())
+    doc = {
+        "id": dealership_id,
+        "name": data.name,
+        "dealership_type": data.dealership_type,
+        "address": data.address,
+        "phone": data.phone,
+        "service_bays": data.service_bays if data.dealership_type == DealershipType.RV else 0,
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.dealerships.insert_one(doc)
+    return DealershipResponse(**doc)
+
+@api_router.get("/dealerships", response_model=List[DealershipResponse])
+async def get_dealerships(user: dict = Depends(get_current_user)):
+    if user["role"] == UserRole.OWNER:
+        dealerships = await db.dealerships.find({}, {"_id": 0}).to_list(100)
+    elif user["role"] == UserRole.DEALERSHIP_ADMIN:
+        dealerships = await db.dealerships.find({"id": user["dealership_id"]}, {"_id": 0}).to_list(1)
+    else:
+        dealerships = await db.dealerships.find({"id": user["dealership_id"]}, {"_id": 0}).to_list(1)
+    return [DealershipResponse(**d) for d in dealerships]
+
+@api_router.get("/dealerships/{dealership_id}", response_model=DealershipResponse)
+async def get_dealership(dealership_id: str, user: dict = Depends(get_current_user)):
+    dealership = await db.dealerships.find_one({"id": dealership_id}, {"_id": 0})
+    if not dealership:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    return DealershipResponse(**dealership)
+
+@api_router.put("/dealerships/{dealership_id}", response_model=DealershipResponse)
+async def update_dealership(dealership_id: str, data: DealershipUpdate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    result = await db.dealerships.update_one({"id": dealership_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    
+    dealership = await db.dealerships.find_one({"id": dealership_id}, {"_id": 0})
+    return DealershipResponse(**dealership)
+
+@api_router.delete("/dealerships/{dealership_id}")
+async def delete_dealership(dealership_id: str, user: dict = Depends(require_role(UserRole.OWNER))):
+    result = await db.dealerships.delete_one({"id": dealership_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    return {"message": "Dealership deleted"}
+
+# ============ USER MANAGEMENT ENDPOINTS ============
+
+@api_router.post("/users", response_model=UserResponse)
+async def create_user(data: UserCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and data.dealership_id != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot create users for other dealerships")
+    
+    existing = await db.users.find_one({"email": data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": data.email,
+        "password": hash_password(data.password),
+        "name": data.name,
+        "role": data.role,
+        "dealership_id": data.dealership_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    return UserResponse(
+        id=user_id,
+        email=data.email,
+        name=data.name,
+        role=data.role,
+        dealership_id=data.dealership_id,
+        created_at=user_doc["created_at"]
+    )
+
+@api_router.get("/users", response_model=List[UserResponse])
+async def get_users(dealership_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    query = {}
+    if user["role"] == UserRole.OWNER:
+        if dealership_id:
+            query["dealership_id"] = dealership_id
+    elif user["role"] == UserRole.DEALERSHIP_ADMIN:
+        query["dealership_id"] = user["dealership_id"]
+    else:
+        query["id"] = user["id"]
+    
+    users = await db.users.find(query, {"_id": 0, "password": 0}).to_list(1000)
+    return [UserResponse(**u) for u in users]
+
+@api_router.get("/users/{user_id}", response_model=UserResponse)
+async def get_user(user_id: str, user: dict = Depends(get_current_user)):
+    target_user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserResponse(**target_user)
+
+@api_router.delete("/users/{user_id}")
+async def delete_user(user_id: str, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    target_user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and target_user.get("dealership_id") != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot delete users from other dealerships")
+    
+    await db.users.delete_one({"id": user_id})
+    return {"message": "User deleted"}
+
+# ============ KEY MANAGEMENT ENDPOINTS ============
+
+@api_router.post("/keys", response_model=KeyResponse)
+async def create_key(data: KeyCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and data.dealership_id != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot create keys for other dealerships")
+    
+    key_id = str(uuid.uuid4())
+    doc = {
+        "id": key_id,
+        "stock_number": data.stock_number,
+        "vehicle_model": data.vehicle_model,
+        "vehicle_year": data.vehicle_year,
+        "vehicle_vin": data.vehicle_vin,
+        "dealership_id": data.dealership_id,
+        "status": KeyStatus.AVAILABLE,
+        "current_checkout": None,
+        "is_active": True,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.keys.insert_one(doc)
+    return KeyResponse(**doc)
+
+@api_router.get("/keys", response_model=List[KeyResponse])
+async def get_keys(dealership_id: Optional[str] = None, status: Optional[str] = None, user: dict = Depends(get_current_user)):
+    query = {"is_active": True}
+    
+    if user["role"] == UserRole.OWNER:
+        if dealership_id:
+            query["dealership_id"] = dealership_id
+    else:
+        query["dealership_id"] = user["dealership_id"]
+    
+    if status:
+        query["status"] = status
+    
+    keys = await db.keys.find(query, {"_id": 0}).to_list(1000)
+    return [KeyResponse(**k) for k in keys]
+
+@api_router.get("/keys/{key_id}", response_model=KeyResponse)
+async def get_key(key_id: str, user: dict = Depends(get_current_user)):
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    return KeyResponse(**key)
+
+@api_router.put("/keys/{key_id}", response_model=KeyResponse)
+async def update_key(key_id: str, data: KeyUpdate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    result = await db.keys.update_one({"id": key_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
+@api_router.post("/keys/{key_id}/checkout", response_model=KeyResponse)
+async def checkout_key(key_id: str, data: KeyCheckoutRequest, user: dict = Depends(get_current_user)):
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    if key["status"] == KeyStatus.CHECKED_OUT:
+        raise HTTPException(status_code=400, detail="Key is already checked out")
+    
+    checkout_info = {
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "reason": data.reason,
+        "notes": data.notes,
+        "service_bay": data.service_bay,
+        "checked_out_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$set": {"status": KeyStatus.CHECKED_OUT, "current_checkout": checkout_info}}
+    )
+    
+    # Log checkout history
+    history_doc = {
+        "id": str(uuid.uuid4()),
+        "key_id": key_id,
+        "dealership_id": key["dealership_id"],
+        "action": "checkout",
+        **checkout_info
+    }
+    await db.key_history.insert_one(history_doc)
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
+@api_router.post("/keys/{key_id}/return", response_model=KeyResponse)
+async def return_key(key_id: str, data: KeyReturnRequest, user: dict = Depends(get_current_user)):
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    if key["status"] != KeyStatus.CHECKED_OUT:
+        raise HTTPException(status_code=400, detail="Key is not checked out")
+    
+    checkout_info = key.get("current_checkout", {})
+    returned_at = datetime.now(timezone.utc)
+    checked_out_at = datetime.fromisoformat(checkout_info.get("checked_out_at", returned_at.isoformat()))
+    duration_minutes = int((returned_at - checked_out_at).total_seconds() / 60)
+    
+    # Log return history
+    history_doc = {
+        "id": str(uuid.uuid4()),
+        "key_id": key_id,
+        "dealership_id": key["dealership_id"],
+        "action": "return",
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "notes": data.notes,
+        "returned_at": returned_at.isoformat(),
+        "duration_minutes": duration_minutes,
+        "original_checkout": checkout_info
+    }
+    await db.key_history.insert_one(history_doc)
+    
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$set": {"status": KeyStatus.AVAILABLE, "current_checkout": None}}
+    )
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
+@api_router.post("/keys/{key_id}/move-bay", response_model=KeyResponse)
+async def move_to_bay(key_id: str, data: BayMoveRequest, user: dict = Depends(get_current_user)):
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    if key["status"] != KeyStatus.CHECKED_OUT:
+        raise HTTPException(status_code=400, detail="Key is not checked out")
+    
+    checkout_info = key.get("current_checkout", {})
+    old_bay = checkout_info.get("service_bay")
+    checkout_info["service_bay"] = data.new_bay
+    
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$set": {"current_checkout": checkout_info}}
+    )
+    
+    # Log bay move
+    history_doc = {
+        "id": str(uuid.uuid4()),
+        "key_id": key_id,
+        "dealership_id": key["dealership_id"],
+        "action": "bay_move",
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "old_bay": old_bay,
+        "new_bay": data.new_bay,
+        "moved_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.key_history.insert_one(history_doc)
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
+@api_router.get("/keys/{key_id}/history")
+async def get_key_history(key_id: str, user: dict = Depends(get_current_user)):
+    history = await db.key_history.find({"key_id": key_id}, {"_id": 0}).sort("checked_out_at", -1).to_list(100)
+    return history
+
+@api_router.get("/checkout-history")
+async def get_checkout_history(dealership_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    query = {}
+    if user["role"] == UserRole.OWNER:
+        if dealership_id:
+            query["dealership_id"] = dealership_id
+    else:
+        query["dealership_id"] = user["dealership_id"]
+    
+    history = await db.key_history.find(query, {"_id": 0}).sort("checked_out_at", -1).to_list(500)
+    return history
+
+# ============ TIME ALERTS ============
+
+@api_router.post("/time-alerts", response_model=TimeAlertResponse)
+async def create_time_alert(data: TimeAlertCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    alert_id = str(uuid.uuid4())
+    doc = {
+        "id": alert_id,
+        "dealership_id": data.dealership_id,
+        "alert_minutes": data.alert_minutes,
+        "is_active": data.is_active
+    }
+    await db.time_alerts.insert_one(doc)
+    return TimeAlertResponse(**doc)
+
+@api_router.get("/time-alerts", response_model=List[TimeAlertResponse])
+async def get_time_alerts(dealership_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    query = {}
+    if user["role"] != UserRole.OWNER:
+        query["dealership_id"] = user["dealership_id"]
+    elif dealership_id:
+        query["dealership_id"] = dealership_id
+    
+    alerts = await db.time_alerts.find(query, {"_id": 0}).to_list(100)
+    return [TimeAlertResponse(**a) for a in alerts]
+
+@api_router.put("/time-alerts/{alert_id}", response_model=TimeAlertResponse)
+async def update_time_alert(alert_id: str, alert_minutes: int, is_active: bool = True, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    result = await db.time_alerts.update_one(
+        {"id": alert_id},
+        {"$set": {"alert_minutes": alert_minutes, "is_active": is_active}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    alert = await db.time_alerts.find_one({"id": alert_id}, {"_id": 0})
+    return TimeAlertResponse(**alert)
+
+@api_router.get("/overdue-keys")
+async def get_overdue_keys(user: dict = Depends(get_current_user)):
+    # Get time alert settings
+    query = {}
+    if user["role"] != UserRole.OWNER:
+        query["dealership_id"] = user["dealership_id"]
+    
+    alerts = await db.time_alerts.find(query, {"_id": 0}).to_list(100)
+    alert_map = {a["dealership_id"]: a["alert_minutes"] for a in alerts if a["is_active"]}
+    
+    # Get checked out keys
+    key_query = {"status": KeyStatus.CHECKED_OUT}
+    if user["role"] != UserRole.OWNER:
+        key_query["dealership_id"] = user["dealership_id"]
+    
+    keys = await db.keys.find(key_query, {"_id": 0}).to_list(1000)
+    
+    overdue_keys = []
+    now = datetime.now(timezone.utc)
+    
+    for key in keys:
+        alert_minutes = alert_map.get(key["dealership_id"], 30)  # Default 30 min
+        checkout = key.get("current_checkout", {})
+        if checkout:
+            checked_out_at = datetime.fromisoformat(checkout["checked_out_at"])
+            elapsed = (now - checked_out_at).total_seconds() / 60
+            if elapsed > alert_minutes:
+                key["overdue_minutes"] = int(elapsed - alert_minutes)
+                key["elapsed_minutes"] = int(elapsed)
+                overdue_keys.append(key)
+    
+    return overdue_keys
+
+# ============ SALES TRACKER ENDPOINTS ============
+
+@api_router.post("/sales-goals", response_model=SalesGoalResponse)
+async def create_sales_goal(data: SalesGoalCreate, user: dict = Depends(get_current_user)):
+    # Check if goal already exists for this year
+    existing = await db.sales_goals.find_one({"user_id": user["id"], "year": data.year})
+    if existing:
+        raise HTTPException(status_code=400, detail="Goal already exists for this year")
+    
+    goal_id = str(uuid.uuid4())
+    doc = {
+        "id": goal_id,
+        "user_id": user["id"],
+        "year": data.year,
+        "yearly_sales_target": data.yearly_sales_target,
+        "yearly_leads_target": data.yearly_leads_target,
+        "yearly_writeups_target": data.yearly_writeups_target,
+        "yearly_appointments_target": data.yearly_appointments_target,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.sales_goals.insert_one(doc)
+    return SalesGoalResponse(**doc)
+
+@api_router.get("/sales-goals", response_model=List[SalesGoalResponse])
+async def get_sales_goals(user_id: Optional[str] = None, year: Optional[int] = None, current_user: dict = Depends(get_current_user)):
+    query = {}
+    
+    if current_user["role"] == UserRole.USER:
+        query["user_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.DEALERSHIP_ADMIN:
+        # Get all users in dealership
+        users = await db.users.find({"dealership_id": current_user["dealership_id"]}, {"id": 1}).to_list(1000)
+        user_ids = [u["id"] for u in users]
+        if user_id and user_id in user_ids:
+            query["user_id"] = user_id
+        else:
+            query["user_id"] = {"$in": user_ids}
+    elif user_id:
+        query["user_id"] = user_id
+    
+    if year:
+        query["year"] = year
+    
+    goals = await db.sales_goals.find(query, {"_id": 0}).to_list(100)
+    return [SalesGoalResponse(**g) for g in goals]
+
+@api_router.put("/sales-goals/{goal_id}", response_model=SalesGoalResponse)
+async def update_sales_goal(goal_id: str, data: SalesGoalCreate, user: dict = Depends(get_current_user)):
+    goal = await db.sales_goals.find_one({"id": goal_id}, {"_id": 0})
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    if goal["user_id"] != user["id"] and user["role"] not in [UserRole.OWNER, UserRole.DEALERSHIP_ADMIN]:
+        raise HTTPException(status_code=403, detail="Cannot update other users' goals")
+    
+    update_data = data.model_dump()
+    await db.sales_goals.update_one({"id": goal_id}, {"$set": update_data})
+    
+    goal = await db.sales_goals.find_one({"id": goal_id}, {"_id": 0})
+    return SalesGoalResponse(**goal)
+
+@api_router.post("/daily-activities", response_model=DailyActivityResponse)
+async def create_daily_activity(data: DailyActivityCreate, user: dict = Depends(get_current_user)):
+    # Check if entry exists for this date
+    existing = await db.daily_activities.find_one({"user_id": user["id"], "date": data.date})
+    if existing:
+        # Update existing
+        update_data = data.model_dump()
+        await db.daily_activities.update_one({"id": existing["id"]}, {"$set": update_data})
+        activity = await db.daily_activities.find_one({"id": existing["id"]}, {"_id": 0})
+        return DailyActivityResponse(**activity)
+    
+    activity_id = str(uuid.uuid4())
+    doc = {
+        "id": activity_id,
+        "user_id": user["id"],
+        **data.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.daily_activities.insert_one(doc)
+    return DailyActivityResponse(**doc)
+
+@api_router.get("/daily-activities", response_model=List[DailyActivityResponse])
+async def get_daily_activities(
+    user_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    query = {}
+    
+    if current_user["role"] == UserRole.USER:
+        query["user_id"] = current_user["id"]
+    elif current_user["role"] == UserRole.DEALERSHIP_ADMIN:
+        users = await db.users.find({"dealership_id": current_user["dealership_id"]}, {"id": 1}).to_list(1000)
+        user_ids = [u["id"] for u in users]
+        if user_id and user_id in user_ids:
+            query["user_id"] = user_id
+        else:
+            query["user_id"] = {"$in": user_ids}
+    elif user_id:
+        query["user_id"] = user_id
+    
+    if start_date:
+        query["date"] = {"$gte": start_date}
+    if end_date:
+        if "date" in query:
+            query["date"]["$lte"] = end_date
+        else:
+            query["date"] = {"$lte": end_date}
+    
+    activities = await db.daily_activities.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
+    return [DailyActivityResponse(**a) for a in activities]
+
+@api_router.get("/sales-progress/{user_id}", response_model=SalesProgressResponse)
+async def get_sales_progress(user_id: str, year: Optional[int] = None, current_user: dict = Depends(get_current_user)):
+    if not year:
+        year = datetime.now().year
+    
+    # Check access
+    if current_user["role"] == UserRole.USER and current_user["id"] != user_id:
+        raise HTTPException(status_code=403, detail="Cannot view other users' progress")
+    
+    if current_user["role"] == UserRole.DEALERSHIP_ADMIN:
+        target_user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if target_user and target_user.get("dealership_id") != current_user["dealership_id"]:
+            raise HTTPException(status_code=403, detail="Cannot view users from other dealerships")
+    
+    # Get goal
+    goal = await db.sales_goals.find_one({"user_id": user_id, "year": year}, {"_id": 0})
+    
+    # Get activities for the year
+    start_date = f"{year}-01-01"
+    end_date = f"{year}-12-31"
+    activities = await db.daily_activities.find(
+        {"user_id": user_id, "date": {"$gte": start_date, "$lte": end_date}},
+        {"_id": 0}
+    ).to_list(366)
+    
+    # Calculate totals
+    total_leads = sum(a.get("leads_walk_in", 0) + a.get("leads_phone", 0) + a.get("leads_internet", 0) for a in activities)
+    total_writeups = sum(a.get("writeups", 0) for a in activities)
+    total_sales = sum(a.get("sales", 0) for a in activities)
+    total_appointments = sum(a.get("appointments_scheduled", 0) for a in activities)
+    
+    # Calculate progress
+    now = datetime.now()
+    year_start = datetime(year, 1, 1)
+    year_end = datetime(year, 12, 31)
+    
+    if now.year == year:
+        days_elapsed = (now - year_start).days + 1
+        days_remaining = (year_end - now).days
+    elif now.year > year:
+        days_elapsed = 365
+        days_remaining = 0
+    else:
+        days_elapsed = 0
+        days_remaining = 365
+    
+    goal_response = SalesGoalResponse(**goal) if goal else None
+    
+    # Calculate percentages and projections
+    sales_target = goal["yearly_sales_target"] if goal else 0
+    leads_target = goal["yearly_leads_target"] if goal else 0
+    writeups_target = goal["yearly_writeups_target"] if goal else 0
+    appointments_target = goal["yearly_appointments_target"] if goal else 0
+    
+    sales_progress = (total_sales / sales_target * 100) if sales_target > 0 else 0
+    leads_progress = (total_leads / leads_target * 100) if leads_target > 0 else 0
+    writeups_progress = (total_writeups / writeups_target * 100) if writeups_target > 0 else 0
+    appointments_progress = (total_appointments / appointments_target * 100) if appointments_target > 0 else 0
+    
+    # Project annual sales based on current pace
+    daily_avg = total_sales / days_elapsed if days_elapsed > 0 else 0
+    projected_annual = int(daily_avg * 365)
+    
+    # Calculate probability based on pace vs target
+    if sales_target > 0 and days_elapsed > 0:
+        expected_by_now = (sales_target / 365) * days_elapsed
+        if expected_by_now > 0:
+            pace_ratio = total_sales / expected_by_now
+            probability = min(100, max(0, pace_ratio * 100))
+        else:
+            probability = 0
+    else:
+        probability = 0
+    
+    return SalesProgressResponse(
+        goal=goal_response,
+        total_leads=total_leads,
+        total_writeups=total_writeups,
+        total_sales=total_sales,
+        total_appointments=total_appointments,
+        sales_progress_percent=round(sales_progress, 1),
+        leads_progress_percent=round(leads_progress, 1),
+        writeups_progress_percent=round(writeups_progress, 1),
+        appointments_progress_percent=round(appointments_progress, 1),
+        days_elapsed=days_elapsed,
+        days_remaining=days_remaining,
+        projected_annual_sales=projected_annual,
+        goal_achievement_probability=round(probability, 1)
+    )
+
+@api_router.get("/team-sales-progress")
+async def get_team_sales_progress(year: Optional[int] = None, current_user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    if not year:
+        year = datetime.now().year
+    
+    if current_user["role"] == UserRole.DEALERSHIP_ADMIN:
+        users = await db.users.find({"dealership_id": current_user["dealership_id"]}, {"_id": 0, "password": 0}).to_list(1000)
+    else:
+        users = await db.users.find({}, {"_id": 0, "password": 0}).to_list(1000)
+    
+    team_progress = []
+    for user in users:
+        if user["role"] == UserRole.OWNER:
+            continue
+        
+        # Get goal
+        goal = await db.sales_goals.find_one({"user_id": user["id"], "year": year}, {"_id": 0})
+        
+        # Get activities
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
+        activities = await db.daily_activities.find(
+            {"user_id": user["id"], "date": {"$gte": start_date, "$lte": end_date}},
+            {"_id": 0}
+        ).to_list(366)
+        
+        total_sales = sum(a.get("sales", 0) for a in activities)
+        total_leads = sum(a.get("leads_walk_in", 0) + a.get("leads_phone", 0) + a.get("leads_internet", 0) for a in activities)
+        
+        sales_target = goal["yearly_sales_target"] if goal else 0
+        progress_percent = (total_sales / sales_target * 100) if sales_target > 0 else 0
+        
+        team_progress.append({
+            "user_id": user["id"],
+            "user_name": user["name"],
+            "dealership_id": user.get("dealership_id"),
+            "sales_target": sales_target,
+            "total_sales": total_sales,
+            "total_leads": total_leads,
+            "progress_percent": round(progress_percent, 1)
+        })
+    
+    return team_progress
+
+# ============ SERVICE BAYS (RV) ============
+
+@api_router.get("/service-bays/{dealership_id}")
+async def get_service_bays(dealership_id: str, user: dict = Depends(get_current_user)):
+    dealership = await db.dealerships.find_one({"id": dealership_id}, {"_id": 0})
+    if not dealership:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    
+    if dealership["dealership_type"] != DealershipType.RV:
+        raise HTTPException(status_code=400, detail="Service bays only available for RV dealerships")
+    
+    # Get keys currently in service bays
+    keys = await db.keys.find({
+        "dealership_id": dealership_id,
+        "status": KeyStatus.CHECKED_OUT,
+        "current_checkout.service_bay": {"$ne": None}
+    }, {"_id": 0}).to_list(100)
+    
+    bays = []
+    for i in range(1, dealership["service_bays"] + 1):
+        bay_key = next((k for k in keys if k.get("current_checkout", {}).get("service_bay") == i), None)
+        bays.append({
+            "bay_number": i,
+            "is_occupied": bay_key is not None,
+            "key": bay_key
+        })
+    
+    return bays
+
+# ============ STATS ============
+
+@api_router.get("/stats/dashboard")
+async def get_dashboard_stats(user: dict = Depends(get_current_user)):
+    query = {}
+    if user["role"] != UserRole.OWNER:
+        query["dealership_id"] = user["dealership_id"]
+    
+    total_keys = await db.keys.count_documents({**query, "is_active": True})
+    checked_out = await db.keys.count_documents({**query, "status": KeyStatus.CHECKED_OUT})
+    available = total_keys - checked_out
+    
+    # Get overdue count
+    overdue_keys = await get_overdue_keys(user)
+    overdue = len(overdue_keys)
+    
+    # User stats
+    user_query = {}
+    if user["role"] == UserRole.DEALERSHIP_ADMIN:
+        user_query["dealership_id"] = user["dealership_id"]
+    
+    total_users = await db.users.count_documents(user_query)
+    
+    # Dealership stats (owner only)
+    total_dealerships = await db.dealerships.count_documents({}) if user["role"] == UserRole.OWNER else 1
+    
+    return {
+        "total_keys": total_keys,
+        "available_keys": available,
+        "checked_out_keys": checked_out,
+        "overdue_keys": overdue,
+        "total_users": total_users,
+        "total_dealerships": total_dealerships
+    }
+
+# Include router
 app.include_router(api_router)
 
 app.add_middleware(
@@ -76,13 +1047,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
