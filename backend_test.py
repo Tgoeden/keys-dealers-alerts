@@ -405,13 +405,15 @@ class KeyFlowAPITester:
 
     def test_create_sales_goal(self):
         """Test creating sales goal"""
+        import time
+        year = 2025  # Use future year to avoid conflicts
         success, response = self.run_test(
             "Create Sales Goal",
             "POST",
             "sales-goals",
             200,
             data={
-                "year": 2024,
+                "year": year,
                 "yearly_sales_target": 100,
                 "yearly_leads_target": 1000,
                 "yearly_writeups_target": 500,
