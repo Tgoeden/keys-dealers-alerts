@@ -568,6 +568,150 @@ async def delete_dealership(dealership_id: str, user: dict = Depends(require_rol
         raise HTTPException(status_code=404, detail="Dealership not found")
     return {"message": "Dealership deleted"}
 
+# ============ INVITE TOKEN ENDPOINTS ============
+
+@api_router.post("/invites", response_model=InviteTokenResponse)
+async def create_invite(data: InviteTokenCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Create an invite token for a dealership. Admins can only create invites for their own dealership."""
+    # Admins can only invite to their own dealership
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and data.dealership_id != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot create invites for other dealerships")
+    
+    # Validate role
+    if data.role not in [UserRole.DEALERSHIP_ADMIN, UserRole.USER]:
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'dealership_admin' or 'user'")
+    
+    # Admins can only create user invites, not admin invites
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and data.role == UserRole.DEALERSHIP_ADMIN:
+        raise HTTPException(status_code=403, detail="Admins cannot create admin invites. Contact the owner.")
+    
+    # Get dealership name
+    dealership = await db.dealerships.find_one({"id": data.dealership_id}, {"_id": 0})
+    if not dealership:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    
+    # Generate unique token
+    token = str(uuid.uuid4())
+    invite_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    
+    doc = {
+        "id": invite_id,
+        "token": token,
+        "dealership_id": data.dealership_id,
+        "dealership_name": dealership["name"],
+        "role": data.role,
+        "created_by": user["id"],
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(days=data.expires_in_days)).isoformat(),
+        "is_used": False,
+        "used_by": None
+    }
+    
+    await db.invites.insert_one(doc)
+    return InviteTokenResponse(**doc)
+
+@api_router.get("/invites", response_model=List[InviteTokenResponse])
+async def get_invites(dealership_id: Optional[str] = None, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Get all invites. Owners see all, admins see their dealership's invites."""
+    query = {}
+    
+    if user["role"] == UserRole.OWNER:
+        if dealership_id:
+            query["dealership_id"] = dealership_id
+    else:
+        query["dealership_id"] = user["dealership_id"]
+    
+    invites = await db.invites.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return [InviteTokenResponse(**i) for i in invites]
+
+@api_router.get("/invites/validate/{token}")
+async def validate_invite(token: str):
+    """Validate an invite token (public endpoint for registration)"""
+    invite = await db.invites.find_one({"token": token}, {"_id": 0})
+    
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invalid invite token")
+    
+    if invite["is_used"]:
+        raise HTTPException(status_code=400, detail="This invite has already been used")
+    
+    expires_at = datetime.fromisoformat(invite["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="This invite has expired")
+    
+    return {
+        "valid": True,
+        "dealership_name": invite["dealership_name"],
+        "role": invite["role"]
+    }
+
+@api_router.post("/invites/accept", response_model=TokenResponse)
+async def accept_invite(data: AcceptInviteRequest):
+    """Accept an invite and create a new user account"""
+    invite = await db.invites.find_one({"token": data.token}, {"_id": 0})
+    
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invalid invite token")
+    
+    if invite["is_used"]:
+        raise HTTPException(status_code=400, detail="This invite has already been used")
+    
+    expires_at = datetime.fromisoformat(invite["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=400, detail="This invite has expired")
+    
+    # Check if email already exists
+    existing = await db.users.find_one({"email": data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": data.email,
+        "password": hash_password(data.password),
+        "name": data.name,
+        "role": invite["role"],
+        "dealership_id": invite["dealership_id"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    # Mark invite as used
+    await db.invites.update_one(
+        {"token": data.token},
+        {"$set": {"is_used": True, "used_by": user_id}}
+    )
+    
+    # Generate login token
+    token = create_token(user_id, data.email, invite["role"], invite["dealership_id"])
+    
+    user_response = UserResponse(
+        id=user_id,
+        email=data.email,
+        name=data.name,
+        role=invite["role"],
+        dealership_id=invite["dealership_id"],
+        created_at=user_doc["created_at"]
+    )
+    
+    return TokenResponse(access_token=token, user=user_response)
+
+@api_router.delete("/invites/{invite_id}")
+async def delete_invite(invite_id: str, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Delete an invite token"""
+    invite = await db.invites.find_one({"id": invite_id}, {"_id": 0})
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and invite["dealership_id"] != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot delete invites for other dealerships")
+    
+    await db.invites.delete_one({"id": invite_id})
+    return {"message": "Invite deleted"}
+
 # ============ USER MANAGEMENT ENDPOINTS ============
 
 @api_router.post("/users", response_model=UserResponse)
