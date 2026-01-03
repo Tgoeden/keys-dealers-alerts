@@ -1043,8 +1043,21 @@ def main():
     
     tester = KeyFlowAPITester()
     
-    # First run the comprehensive sales goal bug fix test
-    print("\n🎯 PRIORITY: Sales Goal Bug Fix Verification")
+    # PRIORITY: Remember Me Feature Testing
+    print("\n🎯 PRIORITY: Remember Me Feature Testing")
+    print("=" * 60)
+    try:
+        remember_me_success = tester.test_remember_me_feature_comprehensive()
+        if remember_me_success:
+            print("✅ REMEMBER ME FEATURE VERIFIED SUCCESSFULLY!")
+        else:
+            print("❌ REMEMBER ME FEATURE VERIFICATION FAILED!")
+    except Exception as e:
+        print(f"❌ Remember Me feature test failed with exception: {str(e)}")
+        remember_me_success = False
+    
+    # Second priority: Sales goal bug fix test
+    print("\n🎯 SECONDARY: Sales Goal Bug Fix Verification")
     print("=" * 60)
     try:
         bug_fix_success = tester.test_sales_goal_bug_fix_scenario()
@@ -1108,6 +1121,11 @@ def main():
     print(f"Tests failed: {len(tester.failed_tests)}")
     print(f"Success rate: {(tester.tests_passed / tester.tests_run * 100):.1f}%" if tester.tests_run > 0 else "0%")
     
+    # Special reporting for priority features
+    print("\n🎯 PRIORITY FEATURE RESULTS:")
+    print(f"   Remember Me Feature: {'✅ PASSED' if remember_me_success else '❌ FAILED'}")
+    print(f"   Sales Goal Bug Fix: {'✅ PASSED' if bug_fix_success else '❌ FAILED'}")
+    
     if tester.failed_tests:
         print("\n❌ FAILED TESTS:")
         for i, failure in enumerate(tester.failed_tests, 1):
@@ -1119,7 +1137,7 @@ def main():
                 if failure.get('response'):
                     print(f"   Response: {failure['response']}")
     
-    return 0 if tester.tests_passed == tester.tests_run else 1
+    return 0 if tester.tests_passed == tester.tests_run and remember_me_success else 1
 
 if __name__ == "__main__":
     sys.exit(main())
