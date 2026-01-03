@@ -168,6 +168,36 @@ backend:
         agent: "testing"
         comment: "✅ VERIFIED: Key management APIs working correctly. Tested key creation (new/used), checkout, return, RV keys without VIN. All functionality working as expected."
 
+  - task: "CSV Bulk Import for Keys"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented CSV bulk import feature - POST /api/keys/bulk-import endpoint accepts dealership_id and array of keys with condition, stock_number, year, make, model. Includes validation for condition (new/used), duplicate stock number detection, and demo account limits enforcement."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: CSV Bulk Import feature working perfectly! Comprehensive testing completed: 1) Successful import of multiple keys (3 keys imported) ✅ 2) Duplicate stock number validation working (correctly rejected with error message) ✅ 3) Invalid condition validation working (rejected 'excellent', requires 'new' or 'used') ✅ 4) Demo limits enforcement working (403 error when exceeding 4 key limit) ✅. All error handling and success scenarios tested successfully. Feature ready for production use."
+
+  - task: "Notes History on Keys"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented notes history feature - checkout/return notes now preserved in notes_history array on keys. Each note includes: note text, user_name, action (checkout/return), timestamp. Notes stored in reverse chronological order (newest first)."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Notes History feature working perfectly! Comprehensive testing completed: 1) Checkout with notes correctly adds to notes_history array ✅ 2) Return with notes preserves both checkout and return notes ✅ 3) Multiple checkout/return cycles preserve all notes in correct order (newest first) ✅ 4) All notes contain required fields: note, user_name, action, timestamp ✅ 5) Notes history maintained through complete checkout → return → checkout cycle ✅. Feature working exactly as specified in review request."
+
 frontend:
   - task: "Sales Tracker Goal Modal"
     implemented: true
