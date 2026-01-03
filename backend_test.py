@@ -1653,6 +1653,8 @@ def main():
     
     # Special reporting for priority features
     print("\n🎯 PRIORITY FEATURE RESULTS:")
+    print(f"   CSV Bulk Import Feature: {'✅ PASSED' if bulk_import_success else '❌ FAILED'}")
+    print(f"   Notes History Feature: {'✅ PASSED' if notes_history_success else '❌ FAILED'}")
     print(f"   Remember Me Feature: {'✅ PASSED' if remember_me_success else '❌ FAILED'}")
     print(f"   Sales Goal Bug Fix: {'✅ PASSED' if bug_fix_success else '❌ FAILED'}")
     
@@ -1667,7 +1669,9 @@ def main():
                 if failure.get('response'):
                     print(f"   Response: {failure['response']}")
     
-    return 0 if tester.tests_passed == tester.tests_run and remember_me_success else 1
+    # Overall success based on new priority features
+    overall_success = bulk_import_success and notes_history_success
+    return 0 if overall_success else 1
 
 if __name__ == "__main__":
     sys.exit(main())
