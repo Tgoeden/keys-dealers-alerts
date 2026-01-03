@@ -434,8 +434,7 @@ class KeyFlowAPITester:
         return success
 
     def test_create_sales_goal(self):
-        """Test creating sales goal"""
-        import time
+        """Test creating sales goal with fixed API (only year and yearly_sales_target)"""
         year = 2025  # Use future year to avoid conflicts
         success, response = self.run_test(
             "Create Sales Goal",
@@ -444,13 +443,63 @@ class KeyFlowAPITester:
             200,
             data={
                 "year": year,
-                "yearly_sales_target": 100,
-                "yearly_leads_target": 1000,
-                "yearly_writeups_target": 500,
-                "yearly_appointments_target": 400
+                "yearly_sales_target": 85  # Test with the specific value from bug report
             }
         )
-        return success
+        if success and 'id' in response:
+            self.sales_goal_id = response['id']
+            print(f"   Sales goal created: {self.sales_goal_id}")
+            # Verify the response contains correct fields
+            if response.get('yearly_sales_target') == 85 and response.get('year') == year:
+                print(f"   ✅ Sales goal fields verified: year={response.get('year')}, target={response.get('yearly_sales_target')}")
+                return True
+            else:
+                print(f"   ❌ Sales goal fields incorrect in response")
+                return False
+        return False
+
+    def test_get_sales_goals(self):
+        """Test getting sales goals for specific year"""
+        year = 2025
+        success, response = self.run_test(
+            "Get Sales Goals",
+            "GET",
+            f"sales-goals?year={year}",
+            200
+        )
+        if success and isinstance(response, list) and len(response) > 0:
+            goal = response[0]
+            if goal.get('year') == year and goal.get('yearly_sales_target') == 85:
+                print(f"   ✅ Sales goal retrieved correctly: {goal.get('yearly_sales_target')} target for {goal.get('year')}")
+                return True
+            else:
+                print(f"   ❌ Sales goal data incorrect: {goal}")
+                return False
+        elif success and isinstance(response, list) and len(response) == 0:
+            print(f"   ⚠️  No sales goals found for year {year}")
+            return True
+        return False
+
+    def test_update_sales_goal(self):
+        """Test updating sales goal"""
+        if not hasattr(self, 'sales_goal_id') or not self.sales_goal_id:
+            print("❌ No sales goal ID available for update test")
+            return False
+            
+        success, response = self.run_test(
+            "Update Sales Goal",
+            "PUT",
+            f"sales-goals/{self.sales_goal_id}",
+            200,
+            data={
+                "year": 2025,
+                "yearly_sales_target": 120  # Update to new target
+            }
+        )
+        if success and response.get('yearly_sales_target') == 120:
+            print(f"   ✅ Sales goal updated successfully to {response.get('yearly_sales_target')}")
+            return True
+        return False
 
     def test_log_daily_activity(self):
         """Test logging daily activity"""
