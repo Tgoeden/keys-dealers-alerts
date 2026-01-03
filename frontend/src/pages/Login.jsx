@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Checkbox } from '../components/ui/checkbox';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Play } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -12,6 +13,7 @@ const LOGO_URL = "https://customer-assets.emergentagent.com/job_keytrack-2/artif
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -40,7 +42,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       toast.success('Welcome back!');
       navigate('/keys');
     } catch (err) {
@@ -64,9 +66,9 @@ const Login = () => {
     }
   };
 
-  const handleOwnerLogin = async (pin) => {
+  const handleOwnerLogin = async (pin, ownerRememberMe) => {
     try {
-      await ownerLogin(pin);
+      await ownerLogin(pin, ownerRememberMe);
       setShowOwnerModal(false);
       toast.success('Owner access granted');
       navigate('/dashboard');
@@ -169,6 +171,26 @@ const Login = () => {
             </div>
           </div>
 
+          {/* Remember Me Checkbox */}
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="remember-me"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked)}
+              className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+              data-testid="remember-me-checkbox"
+            />
+            <label
+              htmlFor="remember-me"
+              className="text-sm text-slate-400 cursor-pointer select-none"
+            >
+              Keep me signed in
+            </label>
+          </div>
+          <p className="text-xs text-slate-500 -mt-3 ml-7">
+            Auto-logout after 5 hours of inactivity
+          </p>
+
           <Button
             type="submit"
             className="w-full h-12 text-base btn-primary"
@@ -197,6 +219,7 @@ const Login = () => {
 
 const OwnerPinModal = ({ onClose, onSubmit }) => {
   const [pin, setPin] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -205,7 +228,7 @@ const OwnerPinModal = ({ onClose, onSubmit }) => {
     setLoading(true);
     setError('');
     try {
-      await onSubmit(pin);
+      await onSubmit(pin, rememberMe);
     } catch (err) {
       setError('Invalid PIN');
     } finally {
@@ -237,6 +260,24 @@ const OwnerPinModal = ({ onClose, onSubmit }) => {
             autoFocus
             data-testid="owner-pin-input"
           />
+          
+          {/* Remember Me for Owner */}
+          <div className="flex items-center space-x-3 mt-4">
+            <Checkbox
+              id="owner-remember-me"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(checked)}
+              className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+              data-testid="owner-remember-me-checkbox"
+            />
+            <label
+              htmlFor="owner-remember-me"
+              className="text-sm text-slate-400 cursor-pointer select-none"
+            >
+              Keep me signed in
+            </label>
+          </div>
+
           {error && (
             <p className="text-red-400 text-sm mt-3 text-center">{error}</p>
           )}
