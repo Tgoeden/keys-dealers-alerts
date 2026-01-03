@@ -1954,8 +1954,23 @@ def main():
     
     tester = KeyFlowAPITester()
     
-    # NEW PRIORITY: Test the two newly implemented features
-    print("\n🎯 PRIORITY: Testing New Features - CSV Bulk Import & Notes History")
+    # HIGHEST PRIORITY: Test the newly implemented Settings and Share Access features
+    print("\n🎯 HIGHEST PRIORITY: Testing Settings and Share Access Features")
+    print("=" * 70)
+    
+    settings_and_share_success = True
+    try:
+        settings_and_share_success = tester.test_settings_and_share_access_comprehensive()
+        if settings_and_share_success:
+            print("✅ SETTINGS & SHARE ACCESS FEATURES VERIFIED SUCCESSFULLY!")
+        else:
+            print("❌ SETTINGS & SHARE ACCESS FEATURES VERIFICATION FAILED!")
+    except Exception as e:
+        print(f"❌ Settings & Share Access features test failed with exception: {str(e)}")
+        settings_and_share_success = False
+    
+    # SECONDARY PRIORITY: Test the two previously implemented features
+    print("\n🎯 SECONDARY: Testing Previously Implemented Features - CSV Bulk Import & Notes History")
     print("=" * 70)
     
     # Test CSV Bulk Import Feature
