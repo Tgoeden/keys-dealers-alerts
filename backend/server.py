@@ -760,9 +760,25 @@ async def checkout_key(key_id: str, data: KeyCheckoutRequest, user: dict = Depen
         "checked_out_at": datetime.now(timezone.utc).isoformat()
     }
     
+    # Get existing notes history
+    notes_history = key.get("notes_history", [])
+    
+    # Add current note to history if provided
+    if data.notes:
+        notes_history.insert(0, {
+            "note": data.notes,
+            "user_name": user["name"],
+            "action": "checkout",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+    
     await db.keys.update_one(
         {"id": key_id},
-        {"$set": {"status": KeyStatus.CHECKED_OUT, "current_checkout": checkout_info}}
+        {"$set": {
+            "status": KeyStatus.CHECKED_OUT, 
+            "current_checkout": checkout_info,
+            "notes_history": notes_history
+        }}
     )
     
     # Log checkout history
@@ -792,6 +808,16 @@ async def return_key(key_id: str, data: KeyReturnRequest, user: dict = Depends(g
     checked_out_at = datetime.fromisoformat(checkout_info.get("checked_out_at", returned_at.isoformat()))
     duration_minutes = int((returned_at - checked_out_at).total_seconds() / 60)
     
+    # Get existing notes history and add return note if provided
+    notes_history = key.get("notes_history", [])
+    if data.notes:
+        notes_history.insert(0, {
+            "note": data.notes,
+            "user_name": user["name"],
+            "action": "return",
+            "timestamp": returned_at.isoformat()
+        })
+    
     # Log return history
     history_doc = {
         "id": str(uuid.uuid4()),
@@ -809,7 +835,11 @@ async def return_key(key_id: str, data: KeyReturnRequest, user: dict = Depends(g
     
     await db.keys.update_one(
         {"id": key_id},
-        {"$set": {"status": KeyStatus.AVAILABLE, "current_checkout": None}}
+        {"$set": {
+            "status": KeyStatus.AVAILABLE, 
+            "current_checkout": None,
+            "notes_history": notes_history
+        }}
     )
     
     key = await db.keys.find_one({"id": key_id}, {"_id": 0})
