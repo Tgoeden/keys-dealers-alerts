@@ -115,10 +115,10 @@ const Login = () => {
             data-testid="demo-login-btn"
           >
             <Play className="w-5 h-5 mr-2" />
-            {demoLoading ? 'Starting Demo...' : 'Try Demo (No Login Required)'}
+            {demoLoading ? 'Starting...' : 'Try Demo'}
           </Button>
           <p className="text-xs text-slate-500 text-center mt-2">
-            Limited to 4 keys and 1 user • Full admin access
+            No login required • Limited to 4 keys
           </p>
         </div>
 
