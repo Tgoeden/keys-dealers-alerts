@@ -3,7 +3,8 @@
 import requests
 import sys
 import json
-from datetime import datetime
+import base64
+from datetime import datetime, timezone
 
 class KeyFlowAPITester:
     def __init__(self, base_url="https://dealflow-keys.preview.emergentagent.com/api"):
