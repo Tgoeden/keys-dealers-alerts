@@ -116,13 +116,24 @@ const Logs = () => {
 
   // Calculate stats
   const todayCheckouts = history.filter(h => {
-    const date = new Date(h.checked_out_at || h.returned_at);
-    return format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && h.action === 'checkout';
+    try {
+      const timestamp = h.checked_out_at || h.returned_at;
+      if (!timestamp) return false;
+      const date = new Date(timestamp);
+      return format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && h.action === 'checkout';
+    } catch (e) {
+      return false;
+    }
   }).length;
 
   const todayReturns = history.filter(h => {
-    const date = new Date(h.returned_at);
-    return format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && h.action === 'return';
+    try {
+      if (!h.returned_at) return false;
+      const date = new Date(h.returned_at);
+      return format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') && h.action === 'return';
+    } catch (e) {
+      return false;
+    }
   }).length;
 
   const avgDuration = history
