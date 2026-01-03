@@ -320,7 +320,7 @@ async def login(data: UserLogin):
     if not user or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    token = create_token(user["id"], user["email"], user["role"], user.get("dealership_id"))
+    token = create_token(user["id"], user["email"], user["role"], user.get("dealership_id"), data.remember_me)
     user_response = UserResponse(
         id=user["id"],
         email=user["email"],
