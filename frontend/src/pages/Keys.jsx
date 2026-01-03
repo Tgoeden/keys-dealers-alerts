@@ -347,10 +347,12 @@ const Keys = () => {
   );
 };
 
-const KeyCard = ({ keyData, isRV, onCheckout, onReturn }) => {
+const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes }) => {
   const isCheckedOut = keyData.status === 'checked_out';
   const checkout = keyData.current_checkout;
   const isNew = keyData.condition === 'new';
+  const hasNotes = (keyData.notes_history && keyData.notes_history.length > 0) || 
+                   (checkout && checkout.notes);
 
   return (
     <div
@@ -406,6 +408,18 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn }) => {
             {checkout.service_bay && ` • Bay ${checkout.service_bay}`}
           </p>
         </div>
+      )}
+
+      {/* Notes Indicator */}
+      {hasNotes && (
+        <button
+          onClick={onViewNotes}
+          className="mt-3 flex items-center gap-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+          data-testid={`view-notes-${keyData.stock_number}`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>View Notes ({keyData.notes_history?.length || (checkout?.notes ? 1 : 0)})</span>
+        </button>
       )}
 
       <div className="mt-4">
