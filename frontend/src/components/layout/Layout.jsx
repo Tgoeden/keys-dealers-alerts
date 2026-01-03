@@ -23,7 +23,8 @@ import { Badge } from '../ui/badge';
 import { cn } from '../../lib/utils';
 import { Toaster } from '../ui/sonner';
 
-const LOGO_URL = "https://customer-assets.emergentagent.com/job_keytrack-2/artifacts/jpgdi733_1000023991.jpg";
+// Logo URL - can be customized per deployment
+const LOGO_URL = process.env.REACT_APP_LOGO_URL || "https://customer-assets.emergentagent.com/job_keytrack-2/artifacts/jpgdi733_1000023991.jpg";
 
 export const Layout = ({ children }) => {
   const { user, logout, isOwner, isDealershipAdmin, isDemo } = useAuth();
