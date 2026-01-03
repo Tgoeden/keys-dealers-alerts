@@ -451,14 +451,14 @@ const StatCard = ({ label, value, icon: Icon, color }) => {
 
   return (
     <Card className="bg-[#111113] border-[#1f1f23]">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colors[color]}`}>
-            <Icon className="w-5 h-5" />
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center ${colors[color]}`}>
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <p className="text-2xl font-bold text-white">{value}</p>
-            <p className="text-xs text-slate-500">{label}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg sm:text-2xl font-bold text-white truncate">{value}</p>
+            <p className="text-xs text-slate-500 truncate">{label}</p>
           </div>
         </div>
       </CardContent>
