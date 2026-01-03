@@ -122,17 +122,28 @@ export const Layout = ({ children }) => {
           ))}
         </div>
 
-        {/* Right Side - Sales Tracker + Menu */}
+        {/* Right Side - Sales Tracker / Back to KeyFlow + Menu */}
         <div className="flex items-center gap-3">
-          {/* Sales Tracker Button - Prominent */}
-          <Button
-            onClick={() => navigate('/sales-tracker')}
-            className="sales-tracker-btn hidden sm:flex"
-            data-testid="sales-tracker-btn"
-          >
-            <TrendingUp className="w-5 h-5" />
-            <span>Sales Tracker</span>
-          </Button>
+          {/* Sales Tracker Button - Changes to "Back to KeyFlow" when on Sales Tracker page */}
+          {location.pathname === '/sales-tracker' ? (
+            <Button
+              onClick={() => navigate('/keys')}
+              className="hidden sm:flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg"
+              data-testid="back-to-keyflow-btn"
+            >
+              <Key className="w-5 h-5" />
+              <span>Back to KeyFlow</span>
+            </Button>
+          ) : (
+            <Button
+              onClick={() => navigate('/sales-tracker')}
+              className="sales-tracker-btn hidden sm:flex"
+              data-testid="sales-tracker-btn"
+            >
+              <TrendingUp className="w-5 h-5" />
+              <span>Sales Tracker</span>
+            </Button>
+          )}
 
           {/* Settings & Help for Admin */}
           {(isDealershipAdmin || isOwner) && (
