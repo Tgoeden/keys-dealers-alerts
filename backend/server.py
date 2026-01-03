@@ -203,6 +203,30 @@ class TimeAlertResponse(BaseModel):
     alert_minutes: int
     is_active: bool
 
+# Invite Token Models
+class InviteTokenCreate(BaseModel):
+    dealership_id: str
+    role: str = "dealership_admin"  # Role the invited user will have
+    expires_in_days: int = 7
+
+class InviteTokenResponse(BaseModel):
+    id: str
+    token: str
+    dealership_id: str
+    dealership_name: str
+    role: str
+    created_by: str
+    created_at: str
+    expires_at: str
+    is_used: bool = False
+    used_by: Optional[str] = None
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    name: str
+    email: EmailStr
+    password: str
+
 # Sales Tracker Models
 class SalesGoalCreate(BaseModel):
     year: int
