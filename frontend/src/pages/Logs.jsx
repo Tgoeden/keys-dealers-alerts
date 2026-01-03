@@ -271,7 +271,13 @@ const Logs = () => {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {filteredHistory.slice(0, 100).map((item) => {
-                      const date = new Date(item.checked_out_at || item.returned_at || item.moved_at);
+                      const timestamp = item.checked_out_at || item.returned_at || item.moved_at;
+                      let date;
+                      try {
+                        date = timestamp ? new Date(timestamp) : new Date();
+                      } catch (e) {
+                        date = new Date();
+                      }
                       return (
                         <tr key={item.id} className="hover:bg-white/5">
                           <td className="p-4">
