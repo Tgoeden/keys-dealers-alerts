@@ -864,7 +864,7 @@ async def create_sales_goal(data: SalesGoalCreate, user: dict = Depends(get_curr
     # Check if goal already exists for this year
     existing = await db.sales_goals.find_one({"user_id": user["id"], "year": data.year})
     if existing:
-        raise HTTPException(status_code=400, detail="Goal already exists for this year")
+        raise HTTPException(status_code=400, detail="Goal already exists for this year. Use update instead.")
     
     goal_id = str(uuid.uuid4())
     doc = {
@@ -872,9 +872,6 @@ async def create_sales_goal(data: SalesGoalCreate, user: dict = Depends(get_curr
         "user_id": user["id"],
         "year": data.year,
         "yearly_sales_target": data.yearly_sales_target,
-        "yearly_leads_target": data.yearly_leads_target,
-        "yearly_writeups_target": data.yearly_writeups_target,
-        "yearly_appointments_target": data.yearly_appointments_target,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.sales_goals.insert_one(doc)
