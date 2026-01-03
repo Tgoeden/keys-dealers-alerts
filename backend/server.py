@@ -252,13 +252,15 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
-def create_token(user_id: str, email: str, role: str, dealership_id: Optional[str] = None) -> str:
+def create_token(user_id: str, email: str, role: str, dealership_id: Optional[str] = None, remember_me: bool = False) -> str:
+    expiration_hours = JWT_REMEMBER_ME_HOURS if remember_me else JWT_EXPIRATION_HOURS
     payload = {
         "user_id": user_id,
         "email": email,
         "role": role,
         "dealership_id": dealership_id,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRATION_HOURS)
+        "remember_me": remember_me,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=expiration_hours)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
