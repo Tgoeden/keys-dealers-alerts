@@ -684,11 +684,38 @@ class KeyFlowAPITester:
         print("\n🎉 Sales Goal Bug Fix Test PASSED - All scenarios working correctly!")
         return True
 
+    def test_dashboard_stats(self):
+        """Test dashboard stats"""
+        success, response = self.run_test(
+            "Get Dashboard Stats",
+            "GET",
+            "stats/dashboard",
+            200
+        )
+        return success
+
 def main():
     print("🚀 Starting KeyFlow API Tests")
     print("=" * 50)
     
     tester = KeyFlowAPITester()
+    
+    # First run the comprehensive sales goal bug fix test
+    print("\n🎯 PRIORITY: Sales Goal Bug Fix Verification")
+    print("=" * 60)
+    try:
+        bug_fix_success = tester.test_sales_goal_bug_fix_scenario()
+        if bug_fix_success:
+            print("✅ SALES GOAL BUG FIX VERIFIED SUCCESSFULLY!")
+        else:
+            print("❌ SALES GOAL BUG FIX VERIFICATION FAILED!")
+    except Exception as e:
+        print(f"❌ Sales goal bug fix test failed with exception: {str(e)}")
+        bug_fix_success = False
+    
+    print("\n" + "=" * 60)
+    print("🔄 Running Additional API Tests")
+    print("=" * 60)
     
     # Test sequence
     tests = [
