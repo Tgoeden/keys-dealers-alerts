@@ -51,8 +51,14 @@ const Logs = () => {
   const filteredHistory = history.filter((item) => {
     if (filter !== 'all' && item.action !== filter) return false;
     if (searchDate) {
-      const itemDate = format(new Date(item.checked_out_at || item.returned_at || item.moved_at), 'yyyy-MM-dd');
-      if (!itemDate.includes(searchDate)) return false;
+      try {
+        const timestamp = item.checked_out_at || item.returned_at || item.moved_at;
+        if (!timestamp) return false;
+        const itemDate = format(new Date(timestamp), 'yyyy-MM-dd');
+        if (!itemDate.includes(searchDate)) return false;
+      } catch (e) {
+        return false;
+      }
     }
     return true;
   });
