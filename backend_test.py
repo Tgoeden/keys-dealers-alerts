@@ -1508,8 +1508,73 @@ def main():
     
     tester = KeyFlowAPITester()
     
-    # PRIORITY: Remember Me Feature Testing
-    print("\n🎯 PRIORITY: Remember Me Feature Testing")
+    # NEW PRIORITY: Test the two newly implemented features
+    print("\n🎯 PRIORITY: Testing New Features - CSV Bulk Import & Notes History")
+    print("=" * 70)
+    
+    # Test CSV Bulk Import Feature
+    print("\n📋 Testing CSV Bulk Import for Keys")
+    print("-" * 40)
+    bulk_import_success = True
+    
+    # First need to set up authentication and dealership
+    try:
+        if not tester.test_demo_login():
+            print("❌ Demo login failed - cannot test bulk import")
+            bulk_import_success = False
+        elif not tester.test_owner_login():
+            print("❌ Owner login failed - cannot create dealership")
+            bulk_import_success = False
+        elif not tester.test_create_dealership_with_admin():
+            print("❌ Dealership creation failed - cannot test bulk import")
+            bulk_import_success = False
+        elif not tester.test_admin_login():
+            print("❌ Admin login failed - cannot test bulk import")
+            bulk_import_success = False
+        else:
+            # Run bulk import tests
+            tests_results = [
+                tester.test_bulk_import_keys_success(),
+                tester.test_bulk_import_duplicate_stock_numbers(),
+                tester.test_bulk_import_invalid_condition(),
+                tester.test_bulk_import_demo_limits()
+            ]
+            bulk_import_success = all(tests_results)
+            
+            if bulk_import_success:
+                print("✅ CSV BULK IMPORT FEATURE VERIFIED SUCCESSFULLY!")
+            else:
+                print("❌ CSV BULK IMPORT FEATURE VERIFICATION FAILED!")
+    except Exception as e:
+        print(f"❌ Bulk import feature test failed with exception: {str(e)}")
+        bulk_import_success = False
+    
+    # Test Notes History Feature
+    print("\n📝 Testing Notes History Feature")
+    print("-" * 40)
+    notes_history_success = True
+    
+    try:
+        # Test individual notes history functionality
+        if not tester.test_notes_history_checkout_return_cycle():
+            print("❌ Notes history checkout/return cycle failed")
+            notes_history_success = False
+        
+        # Test comprehensive flow as specified in review request
+        if not tester.test_notes_history_comprehensive_flow():
+            print("❌ Notes history comprehensive flow failed")
+            notes_history_success = False
+        
+        if notes_history_success:
+            print("✅ NOTES HISTORY FEATURE VERIFIED SUCCESSFULLY!")
+        else:
+            print("❌ NOTES HISTORY FEATURE VERIFICATION FAILED!")
+    except Exception as e:
+        print(f"❌ Notes history feature test failed with exception: {str(e)}")
+        notes_history_success = False
+    
+    # SECONDARY: Remember Me Feature Testing
+    print("\n🎯 SECONDARY: Remember Me Feature Testing")
     print("=" * 60)
     try:
         remember_me_success = tester.test_remember_me_feature_comprehensive()
@@ -1521,8 +1586,8 @@ def main():
         print(f"❌ Remember Me feature test failed with exception: {str(e)}")
         remember_me_success = False
     
-    # Second priority: Sales goal bug fix test
-    print("\n🎯 SECONDARY: Sales Goal Bug Fix Verification")
+    # TERTIARY: Sales goal bug fix test
+    print("\n🎯 TERTIARY: Sales Goal Bug Fix Verification")
     print("=" * 60)
     try:
         bug_fix_success = tester.test_sales_goal_bug_fix_scenario()
