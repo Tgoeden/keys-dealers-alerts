@@ -24,7 +24,8 @@ db = client[os.environ['DB_NAME']]
 # JWT Configuration
 JWT_SECRET = os.environ.get('JWT_SECRET', 'keyflow-secret-key-2024')
 JWT_ALGORITHM = 'HS256'
-JWT_EXPIRATION_HOURS = 24
+JWT_EXPIRATION_HOURS = 5  # Default session length
+JWT_REMEMBER_ME_HOURS = 168  # 7 days when "remember me" is checked
 
 # Owner PIN (stored securely in env)
 OWNER_PIN = os.environ.get('OWNER_PIN', '9988')
