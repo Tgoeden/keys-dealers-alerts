@@ -58,6 +58,15 @@ export const userApi = {
   delete: (id) => api.delete(`/users/${id}`),
 };
 
+// Invites
+export const inviteApi = {
+  getAll: (dealershipId) => api.get('/invites', { params: { dealership_id: dealershipId } }),
+  create: (data) => api.post('/invites', data),
+  validate: (token) => api.get(`/invites/validate/${token}`),
+  accept: (data) => api.post('/invites/accept', data),
+  delete: (id) => api.delete(`/invites/${id}`),
+};
+
 // Keys
 export const keyApi = {
   getAll: (params) => api.get('/keys', { params }),
