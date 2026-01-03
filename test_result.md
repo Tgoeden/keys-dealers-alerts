@@ -294,10 +294,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "CSV Bulk Import for Keys"
-    - "Notes History on Keys"
-    - "Remember Me / Keep me signed in Feature"
-    - "Sales Goal Create/Update API"
+    - "Settings Page - Dealership Branding"
+    - "Invite System - Share Access (Create Invites)"
+    - "Invite System - Share Access (Validate & Accept Invites)"
+    - "Invite System - Share Access (List & Delete Invites)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
