@@ -206,16 +206,28 @@ const Keys = () => {
             </p>
           </div>
           {(isOwner || isDealershipAdmin) && (
-            <Button 
-              onClick={() => setShowAddModal(true)} 
-              disabled={!canAddKeys}
-              className="btn-primary"
-              data-testid="add-key-btn"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Key
-              {!canAddKeys && ' (Limit Reached)'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setShowImportModal(true)} 
+                disabled={!canAddKeys}
+                variant="outline"
+                className="border-[#1f1f23] text-slate-300 hover:text-white hover:bg-white/5"
+                data-testid="import-keys-btn"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Import CSV
+              </Button>
+              <Button 
+                onClick={() => setShowAddModal(true)} 
+                disabled={!canAddKeys}
+                className="btn-primary"
+                data-testid="add-key-btn"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Key
+                {!canAddKeys && ' (Limit Reached)'}
+              </Button>
+            </div>
           )}
         </div>
 
