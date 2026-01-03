@@ -33,9 +33,9 @@ api.interceptors.response.use(
 
 // Auth
 export const authApi = {
-  login: (email, password) => api.post('/auth/login', { email, password }),
+  login: (email, password, rememberMe = false) => api.post('/auth/login', { email, password, remember_me: rememberMe }),
   register: (data) => api.post('/auth/register', data),
-  ownerLogin: (pin) => api.post('/auth/owner-login', { pin }),
+  ownerLogin: (pin, rememberMe = false) => api.post('/auth/owner-login', { pin, remember_me: rememberMe }),
   demoLogin: () => api.post('/auth/demo-login'),
   getMe: () => api.get('/auth/me'),
   getDemoLimits: () => api.get('/demo-limits'),
