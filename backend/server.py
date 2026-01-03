@@ -102,6 +102,9 @@ class DealershipUpdate(BaseModel):
     phone: Optional[str] = None
     service_bays: Optional[int] = None
     is_active: Optional[bool] = None
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
 
 class DealershipResponse(BaseModel):
     id: str
@@ -111,6 +114,9 @@ class DealershipResponse(BaseModel):
     phone: Optional[str] = None
     service_bays: int = 0
     is_active: bool = True
+    logo_url: Optional[str] = None
+    primary_color: Optional[str] = "#22d3ee"
+    secondary_color: Optional[str] = "#0891b2"
     created_at: str
 
 # Key Models
