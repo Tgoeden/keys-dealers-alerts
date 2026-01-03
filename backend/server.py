@@ -169,6 +169,7 @@ class KeyResponse(BaseModel):
     dealership_id: str
     status: str
     current_checkout: Optional[dict] = None
+    notes_history: Optional[List[dict]] = []
     is_active: bool = True
     created_at: str
 
