@@ -10,6 +10,7 @@ import {
   Save,
   Image,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -29,11 +30,12 @@ const PRESET_COLORS = [
 ];
 
 const Settings = () => {
-  const { user, isDealershipAdmin, isOwner } = useAuth();
+  const { user, isDealershipAdmin, isOwner, isDemo } = useAuth();
   const [dealership, setDealership] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoPreviewError, setLogoPreviewError] = useState(false);
   
   const [form, setForm] = useState({
     logo_url: '',
@@ -48,58 +50,80 @@ const Settings = () => {
 
   const fetchData = async () => {
     try {
-      const [dealershipRes, alertsRes] = await Promise.all([
-        dealershipApi.getAll(),
-        alertApi.getAll(),
-      ]);
+      const dealershipRes = await dealershipApi.getAll();
       
       if (dealershipRes.data.length > 0) {
         const d = dealershipRes.data[0];
         setDealership(d);
-        // Load saved settings from localStorage for now
-        const savedSettings = localStorage.getItem(`keyflow_settings_${d.id}`);
-        if (savedSettings) {
-          setForm({ ...form, ...JSON.parse(savedSettings) });
-        }
+        // Load settings from dealership data
+        setForm({
+          logo_url: d.logo_url || '',
+          primary_color: d.primary_color || '#22d3ee',
+          secondary_color: d.secondary_color || '#0891b2',
+          alert_minutes: 30, // Default, will be overridden by alerts
+        });
       }
       
-      if (alertsRes.data.length > 0) {
-        setAlerts(alertsRes.data);
-        setForm(f => ({ ...f, alert_minutes: alertsRes.data[0].alert_minutes }));
+      try {
+        const alertsRes = await alertApi.getAll();
+        if (alertsRes.data.length > 0) {
+          setAlerts(alertsRes.data);
+          setForm(f => ({ ...f, alert_minutes: alertsRes.data[0].alert_minutes }));
+        }
+      } catch (alertErr) {
+        // Alerts endpoint might not exist yet, that's ok
+        console.log('Alerts not available');
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
+    if (!dealership) {
+      toast.error('No dealership found');
+      return;
+    }
+
     setSaving(true);
     try {
-      // Save settings to localStorage (would be backend in production)
-      if (dealership) {
-        localStorage.setItem(`keyflow_settings_${dealership.id}`, JSON.stringify({
-          logo_url: form.logo_url,
-          primary_color: form.primary_color,
-          secondary_color: form.secondary_color,
-        }));
-      }
+      // Update dealership with branding settings
+      await dealershipApi.update(dealership.id, {
+        logo_url: form.logo_url || null,
+        primary_color: form.primary_color,
+        secondary_color: form.secondary_color,
+      });
+      
+      // Update local state
+      setDealership({
+        ...dealership,
+        logo_url: form.logo_url,
+        primary_color: form.primary_color,
+        secondary_color: form.secondary_color,
+      });
       
       // Update alert if exists
-      if (alerts.length > 0) {
-        await alertApi.update(alerts[0].id, form.alert_minutes, true);
-      } else if (dealership) {
-        await alertApi.create({
-          dealership_id: dealership.id,
-          alert_minutes: form.alert_minutes,
-          is_active: true,
-        });
+      try {
+        if (alerts.length > 0) {
+          await alertApi.update(alerts[0].id, form.alert_minutes, true);
+        } else if (dealership) {
+          await alertApi.create({
+            dealership_id: dealership.id,
+            alert_minutes: form.alert_minutes,
+            is_active: true,
+          });
+        }
+      } catch (alertErr) {
+        console.log('Alert save skipped');
       }
       
       toast.success('Settings saved successfully');
     } catch (err) {
-      toast.error('Failed to save settings');
+      console.error('Save error:', err);
+      toast.error(err.response?.data?.detail || 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -113,6 +137,11 @@ const Settings = () => {
     });
   };
 
+  const handleLogoUrlChange = (url) => {
+    setForm({ ...form, logo_url: url });
+    setLogoPreviewError(false);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -120,6 +149,22 @@ const Settings = () => {
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-white/5 rounded w-48" />
             <div className="h-64 bg-white/5 rounded-xl" />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!dealership) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-16">
+            <AlertCircle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white">No Dealership Found</h3>
+            <p className="text-slate-500 mt-1">
+              Please contact your administrator to set up a dealership.
+            </p>
           </div>
         </div>
       </Layout>
@@ -137,7 +182,25 @@ const Settings = () => {
           <p className="text-slate-400 mt-1">
             Customize your dealership branding and preferences
           </p>
+          {dealership && (
+            <p className="text-sm text-cyan-400 mt-2">
+              {dealership.name}
+            </p>
+          )}
         </div>
+
+        {/* Demo Warning */}
+        {isDemo && (
+          <div className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-300">Demo Mode</p>
+              <p className="text-xs text-amber-400/70">
+                Settings changes will be saved but reset when you log out of demo mode
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Branding Section */}
         <Card className="bg-[#111113] border-[#1f1f23]">
@@ -151,25 +214,35 @@ const Settings = () => {
             {/* Logo Upload */}
             <div className="space-y-3">
               <Label className="text-slate-300">Dealership Logo</Label>
-              <div className="flex items-start gap-4">
-                <div className="w-24 h-24 rounded-xl bg-white/5 border border-dashed border-white/20 flex items-center justify-center overflow-hidden">
-                  {form.logo_url ? (
-                    <img src={form.logo_url} alt="Logo" className="w-full h-full object-contain" />
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="w-24 h-24 rounded-xl bg-white/5 border border-dashed border-white/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {form.logo_url && !logoPreviewError ? (
+                    <img 
+                      src={form.logo_url} 
+                      alt="Logo" 
+                      className="w-full h-full object-contain"
+                      onError={() => setLogoPreviewError(true)}
+                    />
                   ) : (
                     <Image className="w-8 h-8 text-slate-500" />
                   )}
                 </div>
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 w-full">
                   <Input
                     value={form.logo_url}
-                    onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-                    placeholder="Enter logo URL..."
+                    onChange={(e) => handleLogoUrlChange(e.target.value)}
+                    placeholder="https://example.com/your-logo.png"
                     className="bg-white/5 border-white/10 text-white"
                     data-testid="logo-url-input"
                   />
                   <p className="text-xs text-slate-500">
-                    Enter the URL of your dealership logo image
+                    Enter the URL of your dealership logo image (PNG, JPG, or SVG recommended)
                   </p>
+                  {logoPreviewError && form.logo_url && (
+                    <p className="text-xs text-red-400">
+                      Unable to load image. Please check the URL is correct and publicly accessible.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -177,6 +250,9 @@ const Settings = () => {
             {/* Color Selection */}
             <div className="space-y-3">
               <Label className="text-slate-300">Brand Colors</Label>
+              <p className="text-xs text-slate-500 mb-2">
+                Select a preset or enter custom hex colors below
+              </p>
               <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
                 {PRESET_COLORS.map((color) => (
                   <button
@@ -197,18 +273,20 @@ const Settings = () => {
                   </button>
                 ))}
               </div>
-              <div className="flex gap-4 mt-4">
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
                 <div className="flex-1 space-y-2">
                   <Label className="text-xs text-slate-500">Primary Color</Label>
                   <div className="flex items-center gap-2">
-                    <div
-                      className="w-8 h-8 rounded-lg"
-                      style={{ backgroundColor: form.primary_color }}
+                    <input
+                      type="color"
+                      value={form.primary_color}
+                      onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+                      className="w-10 h-10 rounded-lg border-0 cursor-pointer"
                     />
                     <Input
                       value={form.primary_color}
                       onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
-                      className="bg-white/5 border-white/10 text-white font-mono text-sm"
+                      className="bg-white/5 border-white/10 text-white font-mono text-sm flex-1"
                       data-testid="primary-color-input"
                     />
                   </div>
@@ -216,17 +294,39 @@ const Settings = () => {
                 <div className="flex-1 space-y-2">
                   <Label className="text-xs text-slate-500">Secondary Color</Label>
                   <div className="flex items-center gap-2">
-                    <div
-                      className="w-8 h-8 rounded-lg"
-                      style={{ backgroundColor: form.secondary_color }}
+                    <input
+                      type="color"
+                      value={form.secondary_color}
+                      onChange={(e) => setForm({ ...form, secondary_color: e.target.value })}
+                      className="w-10 h-10 rounded-lg border-0 cursor-pointer"
                     />
                     <Input
                       value={form.secondary_color}
                       onChange={(e) => setForm({ ...form, secondary_color: e.target.value })}
-                      className="bg-white/5 border-white/10 text-white font-mono text-sm"
+                      className="bg-white/5 border-white/10 text-white font-mono text-sm flex-1"
                       data-testid="secondary-color-input"
                     />
                   </div>
+                </div>
+              </div>
+              
+              {/* Color Preview */}
+              <div className="mt-4 p-4 bg-white/5 rounded-xl">
+                <Label className="text-xs text-slate-500 mb-3 block">Preview</Label>
+                <div className="flex items-center gap-4">
+                  <button
+                    className="px-4 py-2 rounded-lg text-white font-medium transition-all"
+                    style={{ background: `linear-gradient(135deg, ${form.primary_color}, ${form.secondary_color})` }}
+                  >
+                    Primary Button
+                  </button>
+                  <span className="text-sm" style={{ color: form.primary_color }}>
+                    Accent Text
+                  </span>
+                  <div 
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: form.secondary_color }}
+                  />
                 </div>
               </div>
             </div>
@@ -243,7 +343,7 @@ const Settings = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Label className="text-slate-300">Alert after key is checked out for (minutes)</Label>
+              <Label className="text-slate-300">Alert after key is checked out for</Label>
               <div className="flex items-center gap-4">
                 <Input
                   type="number"
@@ -257,14 +357,14 @@ const Settings = () => {
                 <span className="text-slate-400">minutes</span>
               </div>
               <p className="text-xs text-slate-500">
-                Keys checked out longer than this will show in the "Overdue" section
+                Keys checked out longer than this will be flagged as overdue. Default is 30 minutes.
               </p>
             </div>
           </CardContent>
         </Card>
 
         {/* Save Button */}
-        <div className="flex justify-end">
+        <div className="flex justify-end pb-8">
           <Button
             onClick={handleSave}
             disabled={saving}
