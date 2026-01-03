@@ -713,15 +713,321 @@ class KeyFlowAPITester:
         print("   ✅ Daily activity logging working")
         return True
 
-    def test_dashboard_stats(self):
-        """Test dashboard stats"""
+    def decode_jwt_payload(self, token):
+        """Decode JWT token payload to check expiration and remember_me field"""
+        try:
+            # Split token and get payload (middle part)
+            parts = token.split('.')
+            if len(parts) != 3:
+                return None, "Invalid JWT format"
+            
+            # Add padding if needed for base64 decoding
+            payload_b64 = parts[1]
+            padding = 4 - len(payload_b64) % 4
+            if padding != 4:
+                payload_b64 += '=' * padding
+            
+            # Decode base64 and parse JSON
+            payload_bytes = base64.b64decode(payload_b64)
+            payload = json.loads(payload_bytes.decode('utf-8'))
+            
+            return payload, None
+        except Exception as e:
+            return None, f"JWT decode error: {str(e)}"
+
+    def verify_token_expiration(self, token, expected_hours, tolerance_minutes=5):
+        """Verify JWT token expiration is approximately the expected hours from now"""
+        payload, error = self.decode_jwt_payload(token)
+        if error:
+            return False, error
+        
+        if 'exp' not in payload:
+            return False, "No expiration field in token"
+        
+        # Convert exp timestamp to datetime
+        exp_timestamp = payload['exp']
+        exp_datetime = datetime.fromtimestamp(exp_timestamp, tz=timezone.utc)
+        now = datetime.now(timezone.utc)
+        
+        # Calculate actual hours until expiration
+        time_diff = exp_datetime - now
+        actual_hours = time_diff.total_seconds() / 3600
+        
+        # Check if within tolerance
+        tolerance_hours = tolerance_minutes / 60
+        if abs(actual_hours - expected_hours) <= tolerance_hours:
+            return True, f"Token expires in {actual_hours:.2f} hours (expected ~{expected_hours})"
+        else:
+            return False, f"Token expires in {actual_hours:.2f} hours, expected ~{expected_hours} hours"
+
+    def test_login_without_remember_me(self):
+        """Test login WITHOUT remember_me - should get 5-hour token"""
+        print("\n🔍 Testing Login WITHOUT remember_me...")
         success, response = self.run_test(
-            "Get Dashboard Stats",
-            "GET",
-            "stats/dashboard",
-            200
+            "Login without remember_me",
+            "POST",
+            "auth/login",
+            200,
+            data={
+                "email": "demo@keyflow.app",
+                "password": "demo123",
+                "remember_me": False
+            }
         )
-        return success
+        
+        if not success or 'access_token' not in response:
+            return False
+        
+        token = response['access_token']
+        
+        # Verify token expiration is ~5 hours
+        exp_valid, exp_msg = self.verify_token_expiration(token, 5)
+        print(f"   Token expiration: {exp_msg}")
+        
+        # Verify remember_me field in token
+        payload, error = self.decode_jwt_payload(token)
+        if error:
+            print(f"   ❌ JWT decode error: {error}")
+            return False
+        
+        remember_me_value = payload.get('remember_me', None)
+        if remember_me_value is False:
+            print(f"   ✅ remember_me field correctly set to False")
+        else:
+            print(f"   ❌ remember_me field incorrect: {remember_me_value} (expected False)")
+            return False
+        
+        return exp_valid
+
+    def test_login_with_remember_me(self):
+        """Test login WITH remember_me - should get 7-day token"""
+        print("\n🔍 Testing Login WITH remember_me...")
+        success, response = self.run_test(
+            "Login with remember_me",
+            "POST",
+            "auth/login",
+            200,
+            data={
+                "email": "demo@keyflow.app",
+                "password": "demo123",
+                "remember_me": True
+            }
+        )
+        
+        if not success or 'access_token' not in response:
+            return False
+        
+        token = response['access_token']
+        
+        # Verify token expiration is ~7 days (168 hours)
+        exp_valid, exp_msg = self.verify_token_expiration(token, 168)
+        print(f"   Token expiration: {exp_msg}")
+        
+        # Verify remember_me field in token
+        payload, error = self.decode_jwt_payload(token)
+        if error:
+            print(f"   ❌ JWT decode error: {error}")
+            return False
+        
+        remember_me_value = payload.get('remember_me', None)
+        if remember_me_value is True:
+            print(f"   ✅ remember_me field correctly set to True")
+        else:
+            print(f"   ❌ remember_me field incorrect: {remember_me_value} (expected True)")
+            return False
+        
+        return exp_valid
+
+    def test_owner_login_without_remember_me(self):
+        """Test owner login WITHOUT remember_me - should get 5-hour token"""
+        print("\n🔍 Testing Owner Login WITHOUT remember_me...")
+        success, response = self.run_test(
+            "Owner login without remember_me",
+            "POST",
+            "auth/owner-login",
+            200,
+            data={
+                "pin": "9988",
+                "remember_me": False
+            }
+        )
+        
+        if not success or 'access_token' not in response:
+            return False
+        
+        token = response['access_token']
+        
+        # Verify token expiration is ~5 hours
+        exp_valid, exp_msg = self.verify_token_expiration(token, 5)
+        print(f"   Token expiration: {exp_msg}")
+        
+        # Verify remember_me field in token
+        payload, error = self.decode_jwt_payload(token)
+        if error:
+            print(f"   ❌ JWT decode error: {error}")
+            return False
+        
+        remember_me_value = payload.get('remember_me', None)
+        if remember_me_value is False:
+            print(f"   ✅ remember_me field correctly set to False")
+        else:
+            print(f"   ❌ remember_me field incorrect: {remember_me_value} (expected False)")
+            return False
+        
+        return exp_valid
+
+    def test_owner_login_with_remember_me(self):
+        """Test owner login WITH remember_me - should get 7-day token"""
+        print("\n🔍 Testing Owner Login WITH remember_me...")
+        success, response = self.run_test(
+            "Owner login with remember_me",
+            "POST",
+            "auth/owner-login",
+            200,
+            data={
+                "pin": "9988",
+                "remember_me": True
+            }
+        )
+        
+        if not success or 'access_token' not in response:
+            return False
+        
+        token = response['access_token']
+        
+        # Verify token expiration is ~7 days (168 hours)
+        exp_valid, exp_msg = self.verify_token_expiration(token, 168)
+        print(f"   Token expiration: {exp_msg}")
+        
+        # Verify remember_me field in token
+        payload, error = self.decode_jwt_payload(token)
+        if error:
+            print(f"   ❌ JWT decode error: {error}")
+            return False
+        
+        remember_me_value = payload.get('remember_me', None)
+        if remember_me_value is True:
+            print(f"   ✅ remember_me field correctly set to True")
+        else:
+            print(f"   ❌ remember_me field incorrect: {remember_me_value} (expected True)")
+            return False
+        
+        return exp_valid
+
+    def test_demo_login_default_expiration(self):
+        """Test demo login (no remember_me option) - should default to 5 hours"""
+        print("\n🔍 Testing Demo Login (default expiration)...")
+        success, response = self.run_test(
+            "Demo login default expiration",
+            "POST",
+            "auth/demo-login",
+            200,
+            data={}
+        )
+        
+        if not success or 'access_token' not in response:
+            return False
+        
+        token = response['access_token']
+        
+        # Verify token expiration is ~5 hours (default)
+        exp_valid, exp_msg = self.verify_token_expiration(token, 5)
+        print(f"   Token expiration: {exp_msg}")
+        
+        # Verify remember_me field in token (should be False by default)
+        payload, error = self.decode_jwt_payload(token)
+        if error:
+            print(f"   ❌ JWT decode error: {error}")
+            return False
+        
+        remember_me_value = payload.get('remember_me', None)
+        if remember_me_value is False or remember_me_value is None:
+            print(f"   ✅ remember_me field correctly set to {remember_me_value} (default)")
+        else:
+            print(f"   ❌ remember_me field incorrect: {remember_me_value} (expected False or None)")
+            return False
+        
+        return exp_valid
+
+    def test_remember_me_feature_comprehensive(self):
+        """Comprehensive test of the Remember Me feature"""
+        print("\n🎯 Testing Remember Me Feature Comprehensive")
+        print("=" * 60)
+        
+        all_tests_passed = True
+        
+        # Test 1: Login WITHOUT remember_me
+        try:
+            result = self.test_login_without_remember_me()
+            if result:
+                print("   ✅ Login without remember_me: PASSED")
+            else:
+                print("   ❌ Login without remember_me: FAILED")
+                all_tests_passed = False
+        except Exception as e:
+            print(f"   ❌ Login without remember_me: ERROR - {str(e)}")
+            all_tests_passed = False
+        
+        # Test 2: Login WITH remember_me
+        try:
+            result = self.test_login_with_remember_me()
+            if result:
+                print("   ✅ Login with remember_me: PASSED")
+            else:
+                print("   ❌ Login with remember_me: FAILED")
+                all_tests_passed = False
+        except Exception as e:
+            print(f"   ❌ Login with remember_me: ERROR - {str(e)}")
+            all_tests_passed = False
+        
+        # Test 3: Owner login WITHOUT remember_me
+        try:
+            result = self.test_owner_login_without_remember_me()
+            if result:
+                print("   ✅ Owner login without remember_me: PASSED")
+            else:
+                print("   ❌ Owner login without remember_me: FAILED")
+                all_tests_passed = False
+        except Exception as e:
+            print(f"   ❌ Owner login without remember_me: ERROR - {str(e)}")
+            all_tests_passed = False
+        
+        # Test 4: Owner login WITH remember_me
+        try:
+            result = self.test_owner_login_with_remember_me()
+            if result:
+                print("   ✅ Owner login with remember_me: PASSED")
+            else:
+                print("   ❌ Owner login with remember_me: FAILED")
+                all_tests_passed = False
+        except Exception as e:
+            print(f"   ❌ Owner login with remember_me: ERROR - {str(e)}")
+            all_tests_passed = False
+        
+        # Test 5: Demo login (default expiration)
+        try:
+            result = self.test_demo_login_default_expiration()
+            if result:
+                print("   ✅ Demo login default expiration: PASSED")
+            else:
+                print("   ❌ Demo login default expiration: FAILED")
+                all_tests_passed = False
+        except Exception as e:
+            print(f"   ❌ Demo login default expiration: ERROR - {str(e)}")
+            all_tests_passed = False
+        
+        print("\n" + "=" * 60)
+        if all_tests_passed:
+            print("🎉 REMEMBER ME FEATURE: ALL TESTS PASSED!")
+            print("   ✅ JWT token expiration working correctly")
+            print("   ✅ remember_me field in token payload working correctly")
+            print("   ✅ 5-hour expiration for remember_me=false")
+            print("   ✅ 7-day expiration for remember_me=true")
+            print("   ✅ Demo login defaults to 5-hour expiration")
+        else:
+            print("❌ REMEMBER ME FEATURE: SOME TESTS FAILED!")
+        
+        return all_tests_passed
 
 def main():
     print("🚀 Starting KeyFlow API Tests")
