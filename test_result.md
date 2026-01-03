@@ -138,6 +138,21 @@ backend:
         agent: "testing"
         comment: "✅ VERIFIED: All authentication endpoints working correctly. Demo login, owner login (PIN 9988), and regular user registration/login all tested successfully."
 
+  - task: "Remember Me / Keep me signed in Feature"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented 'Remember Me' feature with JWT token expiration logic: remember_me=true gives 7-day token (168 hours), remember_me=false gives 5-hour token. Added remember_me field to JWT payload. Updated login and owner-login endpoints to accept remember_me parameter."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Remember Me feature working perfectly! Comprehensive testing completed: 1) Login WITHOUT remember_me: 5-hour token expiration ✅ 2) Login WITH remember_me: 7-day token expiration ✅ 3) Owner login WITHOUT remember_me: 5-hour token ✅ 4) Owner login WITH remember_me: 7-day token ✅ 5) Demo login: defaults to 5-hour token ✅. JWT token payload correctly includes remember_me field. All token expiration times verified via JWT decode. Feature working as specified."
+
   - task: "Key Management CRUD APIs"
     implemented: true
     working: true
