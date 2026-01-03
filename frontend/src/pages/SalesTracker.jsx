@@ -240,26 +240,26 @@ const SalesTracker = () => {
         {/* MAIN GOAL PROGRESS - Prominent */}
         {progress?.goal && (
           <Card className={`bg-gradient-to-br ${progress.on_track ? 'from-emerald-500/10 to-green-500/5 border-emerald-500/30' : 'from-amber-500/10 to-orange-500/5 border-amber-500/30'}`}>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
                 {/* Probability Circle */}
-                <div className="flex flex-col items-center justify-center">
-                  <div className="relative w-40 h-40">
+                <div className="flex flex-col items-center justify-center order-1 lg:order-1">
+                  <div className="relative w-32 h-32 sm:w-40 sm:h-40">
                     <svg className="w-full h-full transform -rotate-90">
-                      <circle cx="80" cy="80" r="70" stroke="#1f1f23" strokeWidth="12" fill="none" />
+                      <circle cx="50%" cy="50%" r="35%" stroke="#1f1f23" strokeWidth="8" fill="none" />
                       <circle
-                        cx="80" cy="80" r="70"
+                        cx="50%" cy="50%" r="35%"
                         stroke={progress.goal_achievement_probability >= 80 ? '#22c55e' : progress.goal_achievement_probability >= 50 ? '#f59e0b' : '#ef4444'}
-                        strokeWidth="12"
+                        strokeWidth="8"
                         fill="none"
-                        strokeDasharray={`${2 * Math.PI * 70}`}
-                        strokeDashoffset={`${2 * Math.PI * 70 * (1 - progress.goal_achievement_probability / 100)}`}
+                        strokeDasharray={`${2 * Math.PI * 35}`}
+                        strokeDashoffset={`${2 * Math.PI * 35 * (1 - progress.goal_achievement_probability / 100)}`}
                         strokeLinecap="round"
                         className="transition-all duration-1000"
                       />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className={`text-4xl font-bold ${progress.goal_achievement_probability >= 80 ? 'text-emerald-400' : progress.goal_achievement_probability >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                      <span className={`text-2xl sm:text-4xl font-bold ${progress.goal_achievement_probability >= 80 ? 'text-emerald-400' : progress.goal_achievement_probability >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
                         {progress.goal_achievement_probability}%
                       </span>
                       <span className="text-xs text-slate-500 uppercase tracking-wider">Chance</span>
@@ -275,10 +275,10 @@ const SalesTracker = () => {
                 </div>
 
                 {/* Sales Progress */}
-                <div className="flex flex-col justify-center">
+                <div className="flex flex-col justify-center order-2 lg:order-2">
                   <div className="text-center lg:text-left">
                     <p className="text-slate-400 text-sm">Sales This Year</p>
-                    <p className="text-5xl font-bold text-white">{progress.total_sales} <span className="text-2xl text-slate-500">/ {progress.goal.yearly_sales_target}</span></p>
+                    <p className="text-3xl sm:text-5xl font-bold text-white">{progress.total_sales} <span className="text-lg sm:text-2xl text-slate-500">/ {progress.goal.yearly_sales_target}</span></p>
                     <div className="mt-3">
                       <Progress value={(progress.total_sales / progress.goal.yearly_sales_target) * 100} className="h-3" />
                     </div>
@@ -287,21 +287,21 @@ const SalesTracker = () => {
                 </div>
 
                 {/* What's Needed */}
-                <div className="space-y-4">
-                  <div className="bg-white/5 rounded-xl p-4">
+                <div className="space-y-3 sm:space-y-4 order-3 lg:order-3">
+                  <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                     <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">To Hit Your Goal</p>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <p className="text-2xl font-bold text-cyan-400">{progress.weekly_sales_needed}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-cyan-400">{progress.weekly_sales_needed}</p>
                         <p className="text-xs text-slate-500">per week</p>
                       </div>
                       <div>
-                        <p className="text-2xl font-bold text-purple-400">{progress.monthly_sales_needed}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-purple-400">{progress.monthly_sales_needed}</p>
                         <p className="text-xs text-slate-500">per month</p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-400">Days Remaining</span>
                       <span className="text-white font-mono">{progress.days_remaining}</span>
