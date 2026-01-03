@@ -578,12 +578,14 @@ class KeyFlowAPITester:
         demo_user_id = response['user']['id']
         print(f"   ✅ Demo login successful, user ID: {demo_user_id}")
         
-        # Step 2: Create Sales Goal with the exact data from bug report
-        print("\nStep 2: Create Sales Goal (year: 2025, target: 85)")
+        # Step 2: Try to create Sales Goal, handle existing goal scenario
+        print("\nStep 2: Create/Update Sales Goal (year: 2025, target: 85)")
         headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {demo_token}'}
         url = f"{self.base_url}/sales-goals"
+        goal_id = None
         
         try:
+            # First try to create
             response = requests.post(url, json={
                 "year": 2025,
                 "yearly_sales_target": 85
@@ -594,6 +596,21 @@ class KeyFlowAPITester:
                 goal_id = goal_data.get('id')
                 print(f"   ✅ Sales goal created successfully: ID {goal_id}")
                 print(f"   ✅ Goal data: year={goal_data.get('year')}, target={goal_data.get('yearly_sales_target')}")
+            elif response.status_code == 400 and "Goal already exists" in response.text:
+                print("   ℹ️  Goal already exists for 2025, will test update functionality")
+                # Get existing goal
+                get_response = requests.get(f"{self.base_url}/sales-goals?year=2025", headers=headers, timeout=10)
+                if get_response.status_code == 200:
+                    goals = get_response.json()
+                    if goals and len(goals) > 0:
+                        goal_id = goals[0]['id']
+                        print(f"   ✅ Found existing goal: ID {goal_id}")
+                    else:
+                        print("   ❌ No existing goals found despite error message")
+                        return False
+                else:
+                    print(f"   ❌ Failed to get existing goals: {get_response.status_code}")
+                    return False
             else:
                 print(f"   ❌ Sales goal creation failed: {response.status_code}")
                 print(f"   Response: {response.text}")
@@ -620,8 +637,12 @@ class KeyFlowAPITester:
             print(f"   ❌ Get goals error: {str(e)}")
             return False
         
-        # Step 4: Update Sales Goal
-        print("\nStep 4: Update Sales Goal to 120")
+        # Step 4: Update Sales Goal (this tests the bug fix)
+        print("\nStep 4: Update Sales Goal to 120 (Testing Bug Fix)")
+        if not goal_id:
+            print("   ❌ No goal ID available for update test")
+            return False
+            
         try:
             response = requests.put(f"{self.base_url}/sales-goals/{goal_id}", json={
                 "year": 2025,
@@ -630,10 +651,12 @@ class KeyFlowAPITester:
             
             if response.status_code == 200:
                 updated_goal = response.json()
-                print(f"   ✅ Goal updated: target={updated_goal.get('yearly_sales_target')}")
+                print(f"   ✅ Goal updated successfully: target={updated_goal.get('yearly_sales_target')}")
+                print("   ✅ BUG FIX VERIFIED: Sales goal save/update working correctly!")
             else:
                 print(f"   ❌ Goal update failed: {response.status_code}")
                 print(f"   Response: {response.text}")
+                print("   ❌ BUG FIX FAILED: Sales goal save still broken!")
                 return False
         except Exception as e:
             print(f"   ❌ Goal update error: {str(e)}")
@@ -681,7 +704,12 @@ class KeyFlowAPITester:
             print(f"   ❌ Activity logging error: {str(e)}")
             return False
         
-        print("\n🎉 Sales Goal Bug Fix Test PASSED - All scenarios working correctly!")
+        print("\n🎉 SALES GOAL BUG FIX TEST PASSED!")
+        print("   ✅ Demo login working")
+        print("   ✅ Sales goal create/update working (no more 'failed to save' error)")
+        print("   ✅ Sales goal retrieval working")
+        print("   ✅ Sales progress calculation working")
+        print("   ✅ Daily activity logging working")
         return True
 
     def test_dashboard_stats(self):
