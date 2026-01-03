@@ -74,6 +74,10 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route
+        path="/join/:token"
+        element={<Join />}
+      />
 
       {/* Protected routes */}
       <Route
