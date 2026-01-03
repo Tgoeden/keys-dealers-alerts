@@ -243,17 +243,17 @@ const SalesTracker = () => {
             <CardContent className="p-4 sm:p-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
                 {/* Probability Circle */}
-                <div className="flex flex-col items-center justify-center order-1 lg:order-1">
-                  <div className="relative w-32 h-32 sm:w-40 sm:h-40">
-                    <svg className="w-full h-full transform -rotate-90">
-                      <circle cx="50%" cy="50%" r="35%" stroke="#1f1f23" strokeWidth="8" fill="none" />
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative w-28 h-28 sm:w-40 sm:h-40">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                      <circle cx="50" cy="50" r="40" stroke="#1f1f23" strokeWidth="8" fill="none" />
                       <circle
-                        cx="50%" cy="50%" r="35%"
+                        cx="50" cy="50" r="40"
                         stroke={progress.goal_achievement_probability >= 80 ? '#22c55e' : progress.goal_achievement_probability >= 50 ? '#f59e0b' : '#ef4444'}
                         strokeWidth="8"
                         fill="none"
-                        strokeDasharray={`${2 * Math.PI * 35}`}
-                        strokeDashoffset={`${2 * Math.PI * 35 * (1 - progress.goal_achievement_probability / 100)}`}
+                        strokeDasharray={`${2 * Math.PI * 40}`}
+                        strokeDashoffset={`${2 * Math.PI * 40 * (1 - progress.goal_achievement_probability / 100)}`}
                         strokeLinecap="round"
                         className="transition-all duration-1000"
                       />
@@ -275,43 +275,46 @@ const SalesTracker = () => {
                 </div>
 
                 {/* Sales Progress */}
-                <div className="flex flex-col justify-center order-2 lg:order-2">
+                <div className="flex flex-col justify-center">
                   <div className="text-center lg:text-left">
                     <p className="text-slate-400 text-sm">Sales This Year</p>
-                    <p className="text-3xl sm:text-5xl font-bold text-white">{progress.total_sales} <span className="text-lg sm:text-2xl text-slate-500">/ {progress.goal.yearly_sales_target}</span></p>
+                    <p className="text-3xl sm:text-5xl font-bold text-white">
+                      {progress.total_sales} 
+                      <span className="text-lg sm:text-2xl text-slate-500">/ {progress.goal.yearly_sales_target}</span>
+                    </p>
                     <div className="mt-3">
                       <Progress value={(progress.total_sales / progress.goal.yearly_sales_target) * 100} className="h-3" />
                     </div>
-                    <p className="text-sm text-slate-500 mt-2">{progress.sales_needed_remaining} more sales needed</p>
+                    <p className="text-sm text-slate-500 mt-2">{progress.sales_needed_remaining} more needed</p>
                   </div>
                 </div>
 
                 {/* What's Needed */}
-                <div className="space-y-3 sm:space-y-4 order-3 lg:order-3">
+                <div className="space-y-3">
                   <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">To Hit Your Goal</p>
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                      <div>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">To Hit Goal</p>
+                    <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                      <div className="text-center sm:text-left">
                         <p className="text-xl sm:text-2xl font-bold text-cyan-400">{progress.weekly_sales_needed}</p>
                         <p className="text-xs text-slate-500">per week</p>
                       </div>
-                      <div>
+                      <div className="text-center sm:text-left">
                         <p className="text-xl sm:text-2xl font-bold text-purple-400">{progress.monthly_sales_needed}</p>
                         <p className="text-xs text-slate-500">per month</p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white/5 rounded-xl p-3 sm:p-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-400">Days Remaining</span>
+                  <div className="bg-white/5 rounded-xl p-3 sm:p-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Days Left</span>
                       <span className="text-white font-mono">{progress.days_remaining}</span>
                     </div>
-                    <div className="flex justify-between text-sm mt-2">
+                    <div className="flex justify-between mt-2">
                       <span className="text-slate-400">Your Pace</span>
                       <span className="text-white font-mono">{progress.current_pace_per_day}/day</span>
                     </div>
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-slate-400">Projected Annual</span>
+                    <div className="flex justify-between mt-2">
+                      <span className="text-slate-400">Projected</span>
                       <span className={`font-mono ${progress.projected_annual_sales >= progress.goal.yearly_sales_target ? 'text-emerald-400' : 'text-amber-400'}`}>
                         {progress.projected_annual_sales}
                       </span>
