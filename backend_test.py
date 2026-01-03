@@ -1027,6 +1027,8 @@ class KeyFlowAPITester:
         else:
             print("❌ REMEMBER ME FEATURE: SOME TESTS FAILED!")
         
+        return all_tests_passed
+        
     def test_dashboard_stats(self):
         """Test dashboard stats"""
         success, response = self.run_test(
