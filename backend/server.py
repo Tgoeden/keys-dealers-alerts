@@ -186,22 +186,17 @@ class TimeAlertResponse(BaseModel):
 class SalesGoalCreate(BaseModel):
     year: int
     yearly_sales_target: int
-    yearly_leads_target: int = 0
-    yearly_writeups_target: int = 0
-    yearly_appointments_target: int = 0
 
 class SalesGoalResponse(BaseModel):
     id: str
     user_id: str
     year: int
     yearly_sales_target: int
-    yearly_leads_target: int
-    yearly_writeups_target: int
-    yearly_appointments_target: int
     created_at: str
 
 class DailyActivityCreate(BaseModel):
     date: str  # YYYY-MM-DD
+    worked: bool = True  # Did they work this day or day off?
     leads_walk_in: int = 0
     leads_phone: int = 0
     leads_internet: int = 0
@@ -216,6 +211,7 @@ class DailyActivityResponse(BaseModel):
     id: str
     user_id: str
     date: str
+    worked: bool = True
     leads_walk_in: int
     leads_phone: int
     leads_internet: int
@@ -233,14 +229,17 @@ class SalesProgressResponse(BaseModel):
     total_writeups: int = 0
     total_sales: int = 0
     total_appointments: int = 0
-    sales_progress_percent: float = 0.0
-    leads_progress_percent: float = 0.0
-    writeups_progress_percent: float = 0.0
-    appointments_progress_percent: float = 0.0
+    days_worked: int = 0
+    days_off: int = 0
     days_elapsed: int = 0
     days_remaining: int = 0
+    sales_needed_remaining: int = 0
+    weekly_sales_needed: float = 0.0
+    monthly_sales_needed: float = 0.0
+    current_pace_per_day: float = 0.0
     projected_annual_sales: int = 0
     goal_achievement_probability: float = 0.0
+    on_track: bool = False
 
 # ============ AUTH HELPERS ============
 
