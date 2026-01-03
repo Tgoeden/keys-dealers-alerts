@@ -350,22 +350,22 @@ const SalesTracker = () => {
 
         {/* Activity Tracking */}
         <Tabs value={viewMode} onValueChange={setViewMode} className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <TabsList className="bg-[#111113] border border-[#1f1f23]">
-              <TabsTrigger value="daily" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">Daily</TabsTrigger>
-              <TabsTrigger value="weekly" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">Weekly</TabsTrigger>
-              <TabsTrigger value="monthly" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400">Monthly</TabsTrigger>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <TabsList className="bg-[#111113] border border-[#1f1f23] w-full sm:w-auto">
+              <TabsTrigger value="daily" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 flex-1 sm:flex-none">Daily</TabsTrigger>
+              <TabsTrigger value="weekly" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 flex-1 sm:flex-none">Weekly</TabsTrigger>
+              <TabsTrigger value="monthly" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 flex-1 sm:flex-none">Monthly</TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => navigateDate('prev')} className="border-[#1f1f23] text-white hover:bg-white/10">
+            <div className="flex items-center justify-center gap-2">
+              <Button variant="outline" size="icon" onClick={() => navigateDate('prev')} className="border-[#1f1f23] text-white hover:bg-white/10 flex-shrink-0">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <span className="text-sm font-medium text-white min-w-[150px] text-center">
+              <span className="text-sm font-medium text-white min-w-[120px] sm:min-w-[150px] text-center px-2">
                 {viewMode === 'daily' && format(selectedDate, 'MMM d, yyyy')}
                 {viewMode === 'weekly' && `Week of ${format(startOfWeek(selectedDate, { weekStartsOn: 1 }), 'MMM d')}`}
                 {viewMode === 'monthly' && format(selectedDate, 'MMMM yyyy')}
               </span>
-              <Button variant="outline" size="icon" onClick={() => navigateDate('next')} className="border-[#1f1f23] text-white hover:bg-white/10">
+              <Button variant="outline" size="icon" onClick={() => navigateDate('next')} className="border-[#1f1f23] text-white hover:bg-white/10 flex-shrink-0">
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
