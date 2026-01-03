@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../lib/auth';
 import { keyApi, dealershipApi, authApi } from '../lib/api';
 import { Layout } from '../components/layout/Layout';
@@ -14,6 +14,10 @@ import {
   Truck,
   ChevronDown,
   AlertTriangle,
+  Upload,
+  FileText,
+  MessageSquare,
+  Download,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -34,7 +38,7 @@ import {
 } from '../components/ui/dialog';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 
 // Checkout reasons for AUTOMOTIVE dealerships
 const AUTO_CHECKOUT_REASONS = [
