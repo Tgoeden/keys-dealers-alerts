@@ -147,6 +147,17 @@ class KeyUpdate(BaseModel):
     condition: Optional[str] = None
     is_active: Optional[bool] = None
 
+class KeyBulkImportItem(BaseModel):
+    condition: str  # "new" or "used"
+    stock_number: str
+    vehicle_year: Optional[int] = None
+    vehicle_make: Optional[str] = None
+    vehicle_model: str
+
+class KeyBulkImportRequest(BaseModel):
+    dealership_id: str
+    keys: List[KeyBulkImportItem]
+
 class KeyResponse(BaseModel):
     id: str
     stock_number: str
