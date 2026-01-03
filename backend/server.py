@@ -22,13 +22,17 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # JWT Configuration
-JWT_SECRET = os.environ.get('JWT_SECRET', 'keyflow-secret-key-2024')
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    raise ValueError("JWT_SECRET environment variable is required")
 JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 5  # Default session length
 JWT_REMEMBER_ME_HOURS = 168  # 7 days when "remember me" is checked
 
 # Owner PIN (stored securely in env)
-OWNER_PIN = os.environ.get('OWNER_PIN', '9988')
+OWNER_PIN = os.environ.get('OWNER_PIN')
+if not OWNER_PIN:
+    raise ValueError("OWNER_PIN environment variable is required")
 
 # Demo account limits
 DEMO_MAX_KEYS = 4
