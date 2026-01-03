@@ -340,7 +340,7 @@ const SalesTracker = () => {
 
         {/* YTD Stats */}
         {progress && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard label="Total Leads" value={progress.total_leads} icon={Users} color="cyan" />
             <StatCard label="Write-ups" value={progress.total_writeups} icon={FileText} color="purple" />
             <StatCard label="Appointments" value={progress.total_appointments} icon={CalendarCheck} color="amber" />
