@@ -1039,6 +1039,469 @@ class KeyFlowAPITester:
         )
         return success
 
+    def test_bulk_import_keys_success(self):
+        """Test CSV bulk import for keys - successful import"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for bulk import test")
+            return False
+            
+        success, response = self.run_test(
+            "Bulk Import Keys - Success",
+            "POST",
+            "keys/bulk-import",
+            200,
+            data={
+                "dealership_id": self.dealership_id,
+                "keys": [
+                    {
+                        "condition": "new",
+                        "stock_number": "BULK-001",
+                        "vehicle_year": 2024,
+                        "vehicle_make": "Ford",
+                        "vehicle_model": "F-150"
+                    },
+                    {
+                        "condition": "used",
+                        "stock_number": "BULK-002", 
+                        "vehicle_year": 2023,
+                        "vehicle_make": "Toyota",
+                        "vehicle_model": "Camry"
+                    },
+                    {
+                        "condition": "new",
+                        "stock_number": "BULK-003",
+                        "vehicle_year": 2024,
+                        "vehicle_make": "Honda",
+                        "vehicle_model": "Civic"
+                    }
+                ]
+            }
+        )
+        
+        if success and response.get('success') and response.get('imported') == 3:
+            print(f"   ✅ Successfully imported {response.get('imported')} keys")
+            print(f"   ✅ No errors: {len(response.get('errors', []))} errors")
+            return True
+        elif success:
+            print(f"   ❌ Import response unexpected: {response}")
+            return False
+        return False
+
+    def test_bulk_import_duplicate_stock_numbers(self):
+        """Test bulk import error handling for duplicate stock numbers"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for duplicate test")
+            return False
+            
+        success, response = self.run_test(
+            "Bulk Import Keys - Duplicate Stock Numbers",
+            "POST",
+            "keys/bulk-import",
+            200,
+            data={
+                "dealership_id": self.dealership_id,
+                "keys": [
+                    {
+                        "condition": "new",
+                        "stock_number": "BULK-001",  # This should already exist from previous test
+                        "vehicle_year": 2024,
+                        "vehicle_make": "Ford",
+                        "vehicle_model": "Mustang"
+                    }
+                ]
+            }
+        )
+        
+        if success and response.get('errors') and len(response.get('errors')) > 0:
+            error = response['errors'][0]
+            if 'already exists' in error.get('error', '').lower():
+                print(f"   ✅ Duplicate stock number correctly rejected: {error.get('error')}")
+                return True
+            else:
+                print(f"   ❌ Unexpected error message: {error.get('error')}")
+                return False
+        elif success:
+            print(f"   ❌ Expected error for duplicate stock number, but got: {response}")
+            return False
+        return False
+
+    def test_bulk_import_invalid_condition(self):
+        """Test bulk import error handling for invalid condition"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for invalid condition test")
+            return False
+            
+        success, response = self.run_test(
+            "Bulk Import Keys - Invalid Condition",
+            "POST",
+            "keys/bulk-import",
+            200,
+            data={
+                "dealership_id": self.dealership_id,
+                "keys": [
+                    {
+                        "condition": "excellent",  # Invalid - should be 'new' or 'used'
+                        "stock_number": "INVALID-001",
+                        "vehicle_year": 2024,
+                        "vehicle_make": "Ford",
+                        "vehicle_model": "Explorer"
+                    }
+                ]
+            }
+        )
+        
+        if success and response.get('errors') and len(response.get('errors')) > 0:
+            error = response['errors'][0]
+            if 'invalid condition' in error.get('error', '').lower():
+                print(f"   ✅ Invalid condition correctly rejected: {error.get('error')}")
+                return True
+            else:
+                print(f"   ❌ Unexpected error message: {error.get('error')}")
+                return False
+        elif success:
+            print(f"   ❌ Expected error for invalid condition, but got: {response}")
+            return False
+        return False
+
+    def test_bulk_import_demo_limits(self):
+        """Test bulk import respects demo limits"""
+        success, response = self.run_test(
+            "Bulk Import Keys - Demo Limits",
+            "POST",
+            "keys/bulk-import",
+            403,  # Should fail due to demo limits
+            data={
+                "dealership_id": self.dealership_id,
+                "keys": [
+                    {
+                        "condition": "new",
+                        "stock_number": f"DEMO-{i}",
+                        "vehicle_year": 2024,
+                        "vehicle_make": "Ford",
+                        "vehicle_model": "F-150"
+                    } for i in range(10)  # Try to import 10 keys (should exceed demo limit)
+                ]
+            },
+            use_demo_token=True
+        )
+        
+        if success:
+            print(f"   ✅ Demo limits correctly enforced with 403 status")
+            return True
+        return False
+
+    def test_notes_history_checkout_return_cycle(self):
+        """Test notes history preservation through checkout/return cycle"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for notes history test")
+            return False
+        
+        # First create a key for testing notes history
+        success, response = self.run_test(
+            "Create Key for Notes History Test",
+            "POST",
+            "keys",
+            200,
+            data={
+                "stock_number": "NOTES-TEST-001",
+                "vehicle_year": 2024,
+                "vehicle_make": "Ford",
+                "vehicle_model": "F-150",
+                "condition": "new",
+                "dealership_id": self.dealership_id
+            }
+        )
+        
+        if not success or 'id' not in response:
+            print("❌ Failed to create key for notes history test")
+            return False
+        
+        test_key_id = response['id']
+        print(f"   Created test key: {test_key_id}")
+        
+        # Step 1: Checkout key with notes
+        success, response = self.run_test(
+            "Checkout Key with Notes",
+            "POST",
+            f"keys/{test_key_id}/checkout",
+            200,
+            data={
+                "reason": "test_drive",
+                "notes": "First checkout - customer test drive"
+            }
+        )
+        
+        if not success:
+            print("❌ Failed to checkout key with notes")
+            return False
+        
+        # Verify notes_history contains the checkout note
+        notes_history = response.get('notes_history', [])
+        if len(notes_history) != 1:
+            print(f"   ❌ Expected 1 note in history, got {len(notes_history)}")
+            return False
+        
+        first_note = notes_history[0]
+        if (first_note.get('note') == "First checkout - customer test drive" and 
+            first_note.get('action') == 'checkout' and
+            first_note.get('user_name')):
+            print(f"   ✅ Checkout note correctly added to history")
+        else:
+            print(f"   ❌ Checkout note incorrect: {first_note}")
+            return False
+        
+        # Step 2: Return key with notes
+        success, response = self.run_test(
+            "Return Key with Notes",
+            "POST",
+            f"keys/{test_key_id}/return",
+            200,
+            data={
+                "notes": "Returned after test drive - customer interested"
+            }
+        )
+        
+        if not success:
+            print("❌ Failed to return key with notes")
+            return False
+        
+        # Verify notes_history contains both notes (return first, then checkout)
+        notes_history = response.get('notes_history', [])
+        if len(notes_history) != 2:
+            print(f"   ❌ Expected 2 notes in history, got {len(notes_history)}")
+            return False
+        
+        # Notes should be in reverse chronological order (newest first)
+        return_note = notes_history[0]  # Most recent
+        checkout_note = notes_history[1]  # Older
+        
+        if (return_note.get('note') == "Returned after test drive - customer interested" and 
+            return_note.get('action') == 'return' and
+            checkout_note.get('note') == "First checkout - customer test drive" and
+            checkout_note.get('action') == 'checkout'):
+            print(f"   ✅ Return note correctly added to history (newest first)")
+        else:
+            print(f"   ❌ Notes history incorrect after return: {notes_history}")
+            return False
+        
+        # Step 3: Checkout again with different notes
+        success, response = self.run_test(
+            "Checkout Key Again with Different Notes",
+            "POST",
+            f"keys/{test_key_id}/checkout",
+            200,
+            data={
+                "reason": "extended_test_drive",
+                "notes": "Second checkout - extended test drive for family"
+            }
+        )
+        
+        if not success:
+            print("❌ Failed to checkout key again with notes")
+            return False
+        
+        # Verify notes_history contains all 3 notes
+        notes_history = response.get('notes_history', [])
+        if len(notes_history) != 3:
+            print(f"   ❌ Expected 3 notes in history, got {len(notes_history)}")
+            return False
+        
+        # Verify order: newest checkout, return, original checkout
+        latest_checkout = notes_history[0]
+        return_note = notes_history[1]
+        original_checkout = notes_history[2]
+        
+        if (latest_checkout.get('note') == "Second checkout - extended test drive for family" and
+            latest_checkout.get('action') == 'checkout' and
+            return_note.get('action') == 'return' and
+            original_checkout.get('action') == 'checkout'):
+            print(f"   ✅ All 3 notes correctly preserved in history (newest first)")
+            print(f"   ✅ Notes include: note text, user_name, action, timestamp")
+            
+            # Verify all required fields are present
+            for i, note in enumerate(notes_history):
+                if not all(key in note for key in ['note', 'user_name', 'action', 'timestamp']):
+                    print(f"   ❌ Note {i+1} missing required fields: {note}")
+                    return False
+            
+            print(f"   ✅ All notes have required fields: note, user_name, action, timestamp")
+            return True
+        else:
+            print(f"   ❌ Notes history incorrect after second checkout: {notes_history}")
+            return False
+
+    def test_notes_history_comprehensive_flow(self):
+        """Test the complete notes history flow as specified in review request"""
+        print("\n🎯 Testing Notes History Comprehensive Flow")
+        print("=" * 60)
+        
+        # Use demo login for this test
+        success, response = self.run_test(
+            "Demo Login for Notes History Test",
+            "POST",
+            "auth/demo-login",
+            200,
+            data={}
+        )
+        
+        if not success or 'access_token' not in response:
+            print("❌ Demo login failed for notes history test")
+            return False
+        
+        demo_token = response['access_token']
+        demo_user = response['user']
+        demo_dealership_id = demo_user.get('dealership_id')
+        
+        if not demo_dealership_id:
+            print("❌ No dealership ID from demo login")
+            return False
+        
+        print(f"   ✅ Demo login successful, dealership: {demo_dealership_id}")
+        
+        # Create test keys via bulk import
+        print("\nStep 1: Create test keys via bulk import")
+        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {demo_token}'}
+        
+        try:
+            response = requests.post(f"{self.base_url}/keys/bulk-import", json={
+                "dealership_id": demo_dealership_id,
+                "keys": [
+                    {
+                        "condition": "new",
+                        "stock_number": "NOTES-FLOW-001",
+                        "vehicle_year": 2024,
+                        "vehicle_make": "Ford",
+                        "vehicle_model": "F-150"
+                    }
+                ]
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                import_result = response.json()
+                if import_result.get('imported') == 1:
+                    print(f"   ✅ Test key imported successfully")
+                else:
+                    print(f"   ❌ Import failed: {import_result}")
+                    return False
+            else:
+                print(f"   ❌ Bulk import failed: {response.status_code} - {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Bulk import error: {str(e)}")
+            return False
+        
+        # Get the created key
+        print("\nStep 2: Verify key exists")
+        try:
+            response = requests.get(f"{self.base_url}/keys", headers=headers, timeout=10)
+            if response.status_code == 200:
+                keys = response.json()
+                test_key = next((k for k in keys if k.get('stock_number') == 'NOTES-FLOW-001'), None)
+                if test_key:
+                    test_key_id = test_key['id']
+                    print(f"   ✅ Test key found: {test_key_id}")
+                else:
+                    print(f"   ❌ Test key not found in keys list")
+                    return False
+            else:
+                print(f"   ❌ Failed to get keys: {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Get keys error: {str(e)}")
+            return False
+        
+        # Step 3: Checkout key with notes
+        print("\nStep 3: Checkout key with notes")
+        try:
+            response = requests.post(f"{self.base_url}/keys/{test_key_id}/checkout", json={
+                "reason": "test_drive",
+                "notes": "Customer John Smith test drive - interested in F-150"
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                key_data = response.json()
+                notes_history = key_data.get('notes_history', [])
+                if len(notes_history) == 1 and notes_history[0].get('action') == 'checkout':
+                    print(f"   ✅ Checkout note added to history: {notes_history[0].get('note')}")
+                else:
+                    print(f"   ❌ Checkout notes history incorrect: {notes_history}")
+                    return False
+            else:
+                print(f"   ❌ Checkout failed: {response.status_code} - {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Checkout error: {str(e)}")
+            return False
+        
+        # Step 4: Return key with notes
+        print("\nStep 4: Return key with notes")
+        try:
+            response = requests.post(f"{self.base_url}/keys/{test_key_id}/return", json={
+                "notes": "Returned - customer wants to think about it over weekend"
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                key_data = response.json()
+                notes_history = key_data.get('notes_history', [])
+                if (len(notes_history) == 2 and 
+                    notes_history[0].get('action') == 'return' and
+                    notes_history[1].get('action') == 'checkout'):
+                    print(f"   ✅ Return note added to history (newest first)")
+                    print(f"   ✅ Both notes preserved: checkout + return")
+                else:
+                    print(f"   ❌ Return notes history incorrect: {notes_history}")
+                    return False
+            else:
+                print(f"   ❌ Return failed: {response.status_code} - {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Return error: {str(e)}")
+            return False
+        
+        # Step 5: Checkout again with new notes
+        print("\nStep 5: Checkout again with different notes")
+        try:
+            response = requests.post(f"{self.base_url}/keys/{test_key_id}/checkout", json={
+                "reason": "extended_test_drive",
+                "notes": "Customer came back - wants extended test drive with spouse"
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                key_data = response.json()
+                notes_history = key_data.get('notes_history', [])
+                if len(notes_history) == 3:
+                    # Verify order: newest checkout, return, original checkout
+                    actions = [note.get('action') for note in notes_history]
+                    if actions == ['checkout', 'return', 'checkout']:
+                        print(f"   ✅ All 3 notes preserved in correct order (newest first)")
+                        
+                        # Verify all notes have required fields
+                        all_fields_present = True
+                        for note in notes_history:
+                            required_fields = ['note', 'user_name', 'action', 'timestamp']
+                            if not all(field in note for field in required_fields):
+                                print(f"   ❌ Note missing required fields: {note}")
+                                all_fields_present = False
+                        
+                        if all_fields_present:
+                            print(f"   ✅ All notes contain required fields: note, user_name, action, timestamp")
+                            print(f"   ✅ NOTES HISTORY FEATURE WORKING CORRECTLY!")
+                            return True
+                        else:
+                            return False
+                    else:
+                        print(f"   ❌ Notes in wrong order. Expected [checkout, return, checkout], got {actions}")
+                        return False
+                else:
+                    print(f"   ❌ Expected 3 notes, got {len(notes_history)}: {notes_history}")
+                    return False
+            else:
+                print(f"   ❌ Second checkout failed: {response.status_code} - {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Second checkout error: {str(e)}")
+            return False
+
 def main():
     print("🚀 Starting KeyFlow API Tests")
     print("=" * 50)
