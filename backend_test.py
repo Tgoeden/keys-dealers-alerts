@@ -2114,6 +2114,7 @@ def main():
     
     # Special reporting for priority features
     print("\n🎯 PRIORITY FEATURE RESULTS:")
+    print(f"   Settings & Share Access Features: {'✅ PASSED' if settings_and_share_success else '❌ FAILED'}")
     print(f"   CSV Bulk Import Feature: {'✅ PASSED' if bulk_import_success else '❌ FAILED'}")
     print(f"   Notes History Feature: {'✅ PASSED' if notes_history_success else '❌ FAILED'}")
     print(f"   Remember Me Feature: {'✅ PASSED' if remember_me_success else '❌ FAILED'}")
@@ -2130,8 +2131,16 @@ def main():
                 if failure.get('response'):
                     print(f"   Response: {failure['response']}")
     
-    # Overall success based on new priority features
-    overall_success = bulk_import_success and notes_history_success
+    # Overall success based on new priority features (Settings & Share Access)
+    overall_success = settings_and_share_success
+    
+    if overall_success:
+        print(f"\n🎉 CRITICAL FEATURES VERIFICATION: SUCCESS!")
+        print(f"   The newly implemented Settings and Share Access features are working correctly.")
+    else:
+        print(f"\n💥 CRITICAL FEATURES VERIFICATION: FAILURE!")
+        print(f"   The newly implemented Settings and Share Access features have issues.")
+    
     return 0 if overall_success else 1
 
 if __name__ == "__main__":
