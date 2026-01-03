@@ -759,4 +759,318 @@ const ReturnModal = ({ open, onClose, keyData, onSubmit }) => {
   );
 };
 
+// Import Keys Modal for CSV upload
+const ImportKeysModal = ({ open, onClose, onSuccess, dealershipId }) => {
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split('\n').filter(line => line.trim());
+      const parsed = [];
+
+      for (let i = 0; i < lines.length && i < 10; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse CSV line (handle quotes if present)
+        const values = line.split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+        
+        // Skip header row if it looks like headers
+        if (i === 0 && values[0]?.toLowerCase().includes('condition')) continue;
+
+        if (values.length >= 2) {
+          parsed.push({
+            condition: values[0] || '',
+            stock_number: values[1] || '',
+            vehicle_year: values[2] ? parseInt(values[2]) : null,
+            vehicle_make: values[3] || '',
+            vehicle_model: values[4] || values[3] || '', // Fall back to make if model not provided
+          });
+        }
+      }
+
+      setPreview(parsed);
+    };
+    reader.readAsText(selectedFile);
+  };
+
+  const handleImport = async () => {
+    if (!file || !dealershipId) return;
+
+    setLoading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target.result;
+        const lines = text.split('\n').filter(line => line.trim());
+        const keys = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const values = line.split(',').map(v => v.trim().replace(/^["']|["']$/g, ''));
+          
+          // Skip header row
+          if (i === 0 && values[0]?.toLowerCase().includes('condition')) continue;
+
+          if (values.length >= 2) {
+            keys.push({
+              condition: values[0] || 'used',
+              stock_number: values[1] || '',
+              vehicle_year: values[2] ? parseInt(values[2]) : null,
+              vehicle_make: values[3] || '',
+              vehicle_model: values[4] || values[3] || '',
+            });
+          }
+        }
+
+        const res = await keyApi.bulkImport({
+          dealership_id: dealershipId,
+          keys: keys,
+        });
+
+        setResult(res.data);
+        
+        if (res.data.imported > 0) {
+          toast.success(`Successfully imported ${res.data.imported} keys`);
+          if (res.data.errors?.length === 0) {
+            onSuccess();
+          }
+        }
+        
+        if (res.data.errors?.length > 0) {
+          toast.error(`${res.data.errors.length} errors occurred during import`);
+        }
+      };
+      reader.readAsText(file);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Import failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetModal = () => {
+    setFile(null);
+    setPreview([]);
+    setResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleClose = () => {
+    resetModal();
+    onClose();
+  };
+
+  const downloadTemplate = () => {
+    const template = "Condition,Stock Number,Year,Make,Model\nNew,STK001,2024,Ford,F-150\nUsed,STK002,2022,Toyota,Camry\nNew,STK003,2024,Thor,Magnitude";
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'keys_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-lg" data-testid="import-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            Import Keys from CSV
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Instructions */}
+          <div className="p-4 bg-slate-800/50 rounded-xl text-sm">
+            <p className="text-slate-300 mb-2">CSV Format (one key per line):</p>
+            <code className="block text-xs text-cyan-400 bg-slate-900/50 p-2 rounded">
+              Condition, Stock Number, Year, Make, Model
+            </code>
+            <p className="text-slate-500 mt-2 text-xs">
+              Example: New, STK001, 2024, Ford, F-150
+            </p>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="text-cyan-400 p-0 h-auto mt-2"
+              onClick={downloadTemplate}
+            >
+              <Download className="w-3 h-3 mr-1" />
+              Download Template
+            </Button>
+          </div>
+
+          {/* File Upload */}
+          <div className="space-y-2">
+            <Label>Select CSV File</Label>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.txt"
+              onChange={handleFileChange}
+              className="bg-[#111113] border-[#1f1f23] text-white file:bg-slate-700 file:text-white file:border-0 file:mr-4 file:py-2 file:px-4 file:rounded-lg"
+              data-testid="import-file-input"
+            />
+          </div>
+
+          {/* Preview */}
+          {preview.length > 0 && (
+            <div className="space-y-2">
+              <Label>Preview (first {preview.length} entries)</Label>
+              <div className="max-h-40 overflow-y-auto bg-slate-900/50 rounded-lg p-2 text-xs">
+                {preview.map((item, idx) => (
+                  <div key={idx} className="flex gap-2 py-1 border-b border-slate-800 last:border-0">
+                    <Badge className={item.condition?.toLowerCase() === 'new' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-500/20 text-slate-400'}>
+                      {item.condition}
+                    </Badge>
+                    <span className="text-slate-300">#{item.stock_number}</span>
+                    <span className="text-slate-500">
+                      {item.vehicle_year} {item.vehicle_make} {item.vehicle_model}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Result */}
+          {result && (
+            <div className={`p-4 rounded-xl ${result.errors?.length > 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-emerald-500/10 border border-emerald-500/20'}`}>
+              <p className="text-sm font-medium text-white">
+                Import Complete: {result.imported} of {result.total_submitted} keys imported
+              </p>
+              {result.errors?.length > 0 && (
+                <div className="mt-2 text-xs text-amber-400 max-h-24 overflow-y-auto">
+                  {result.errors.map((err, idx) => (
+                    <p key={idx}>Row {err.row}: {err.error}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" className="flex-1" onClick={handleClose}>
+              {result ? 'Close' : 'Cancel'}
+            </Button>
+            {!result && (
+              <Button 
+                className="flex-1 btn-primary" 
+                disabled={!file || loading || preview.length === 0}
+                onClick={handleImport}
+                data-testid="import-submit"
+              >
+                {loading ? 'Importing...' : `Import ${preview.length} Keys`}
+              </Button>
+            )}
+            {result && result.errors?.length > 0 && (
+              <Button 
+                className="flex-1" 
+                onClick={onSuccess}
+              >
+                Done
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Notes History Modal
+const NotesModal = ({ open, onClose, keyData }) => {
+  if (!keyData) return null;
+
+  const notesHistory = keyData.notes_history || [];
+  const currentNote = keyData.current_checkout?.notes;
+
+  // Combine current checkout note with history if not already included
+  const allNotes = [...notesHistory];
+  
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md" data-testid="notes-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <MessageSquare className="w-5 h-5" />
+            Notes for #{keyData.stock_number}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-sm text-slate-400">
+            {keyData.vehicle_year} {keyData.vehicle_make} {keyData.vehicle_model}
+          </p>
+
+          {/* Current Checkout Note (if checked out and has note not in history) */}
+          {keyData.status === 'checked_out' && currentNote && !notesHistory.find(n => n.note === currentNote) && (
+            <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge className="bg-cyan-500/20 text-cyan-400 text-xs">Current Checkout</Badge>
+                <span className="text-xs text-slate-500">{keyData.current_checkout?.user_name}</span>
+              </div>
+              <p className="text-sm text-slate-200">{currentNote}</p>
+            </div>
+          )}
+
+          {/* Notes History */}
+          {allNotes.length > 0 ? (
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {allNotes.map((note, idx) => (
+                <div key={idx} className="p-3 bg-slate-800/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge className={note.action === 'checkout' ? 'bg-amber-500/20 text-amber-400 text-xs' : 'bg-emerald-500/20 text-emerald-400 text-xs'}>
+                      {note.action === 'checkout' ? 'Check Out' : 'Return'}
+                    </Badge>
+                    <span className="text-xs text-slate-500">{note.user_name}</span>
+                    {note.timestamp && (
+                      <span className="text-xs text-slate-600">
+                        {format(new Date(note.timestamp), 'MMM d, yyyy h:mm a')}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-300">{note.note}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            !currentNote && (
+              <div className="text-center py-8 text-slate-500">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No notes for this key</p>
+              </div>
+            )
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default Keys;
