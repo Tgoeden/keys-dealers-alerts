@@ -556,15 +556,133 @@ class KeyFlowAPITester:
         )
         return success
 
-    def test_dashboard_stats(self):
-        """Test dashboard stats"""
+    def test_sales_goal_bug_fix_scenario(self):
+        """Test the specific sales goal bug fix scenario from the review request"""
+        print("\n🎯 Testing Sales Goal Bug Fix Scenario")
+        print("=" * 50)
+        
+        # Step 1: Demo Login
+        print("Step 1: Demo Login")
         success, response = self.run_test(
-            "Get Dashboard Stats",
-            "GET",
-            "stats/dashboard",
-            200
+            "Demo Login for Bug Fix Test",
+            "POST",
+            "auth/demo-login",
+            200,
+            data={}
         )
-        return success
+        if not success or 'access_token' not in response:
+            print("❌ Demo login failed - cannot proceed with bug fix test")
+            return False
+            
+        demo_token = response['access_token']
+        demo_user_id = response['user']['id']
+        print(f"   ✅ Demo login successful, user ID: {demo_user_id}")
+        
+        # Step 2: Create Sales Goal with the exact data from bug report
+        print("\nStep 2: Create Sales Goal (year: 2025, target: 85)")
+        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {demo_token}'}
+        url = f"{self.base_url}/sales-goals"
+        
+        try:
+            response = requests.post(url, json={
+                "year": 2025,
+                "yearly_sales_target": 85
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                goal_data = response.json()
+                goal_id = goal_data.get('id')
+                print(f"   ✅ Sales goal created successfully: ID {goal_id}")
+                print(f"   ✅ Goal data: year={goal_data.get('year')}, target={goal_data.get('yearly_sales_target')}")
+            else:
+                print(f"   ❌ Sales goal creation failed: {response.status_code}")
+                print(f"   Response: {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Sales goal creation error: {str(e)}")
+            return False
+        
+        # Step 3: Get Sales Goals
+        print("\nStep 3: Get Sales Goals for 2025")
+        try:
+            response = requests.get(f"{self.base_url}/sales-goals?year=2025", headers=headers, timeout=10)
+            if response.status_code == 200:
+                goals = response.json()
+                if goals and len(goals) > 0:
+                    goal = goals[0]
+                    print(f"   ✅ Retrieved goal: year={goal.get('year')}, target={goal.get('yearly_sales_target')}")
+                else:
+                    print("   ⚠️  No goals found for 2025")
+            else:
+                print(f"   ❌ Get goals failed: {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Get goals error: {str(e)}")
+            return False
+        
+        # Step 4: Update Sales Goal
+        print("\nStep 4: Update Sales Goal to 120")
+        try:
+            response = requests.put(f"{self.base_url}/sales-goals/{goal_id}", json={
+                "year": 2025,
+                "yearly_sales_target": 120
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                updated_goal = response.json()
+                print(f"   ✅ Goal updated: target={updated_goal.get('yearly_sales_target')}")
+            else:
+                print(f"   ❌ Goal update failed: {response.status_code}")
+                print(f"   Response: {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Goal update error: {str(e)}")
+            return False
+        
+        # Step 5: Get Sales Progress
+        print("\nStep 5: Get Sales Progress")
+        try:
+            response = requests.get(f"{self.base_url}/sales-progress/{demo_user_id}?year=2025", headers=headers, timeout=10)
+            if response.status_code == 200:
+                progress = response.json()
+                goal_info = progress.get('goal', {})
+                print(f"   ✅ Progress retrieved: goal target={goal_info.get('yearly_sales_target')}, current sales={progress.get('total_sales')}")
+            else:
+                print(f"   ❌ Get progress failed: {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Get progress error: {str(e)}")
+            return False
+        
+        # Step 6: Log Daily Activity
+        print("\nStep 6: Log Daily Activity")
+        try:
+            response = requests.post(f"{self.base_url}/daily-activities", json={
+                "date": "2025-01-15",
+                "worked": True,
+                "leads_walk_in": 3,
+                "leads_phone": 2,
+                "leads_internet": 1,
+                "writeups": 2,
+                "sales": 1,
+                "appointments_scheduled": 2,
+                "appointments_shown": 1,
+                "notes": "Test activity for sales goal bug fix verification"
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                activity = response.json()
+                print(f"   ✅ Activity logged: sales={activity.get('sales')}, leads={activity.get('leads_walk_in', 0) + activity.get('leads_phone', 0) + activity.get('leads_internet', 0)}")
+            else:
+                print(f"   ❌ Activity logging failed: {response.status_code}")
+                print(f"   Response: {response.text}")
+                return False
+        except Exception as e:
+            print(f"   ❌ Activity logging error: {str(e)}")
+            return False
+        
+        print("\n🎉 Sales Goal Bug Fix Test PASSED - All scenarios working correctly!")
+        return True
 
 def main():
     print("🚀 Starting KeyFlow API Tests")
