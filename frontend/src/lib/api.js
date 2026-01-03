@@ -63,6 +63,7 @@ export const keyApi = {
   getAll: (params) => api.get('/keys', { params }),
   getOne: (id) => api.get(`/keys/${id}`),
   create: (data) => api.post('/keys', data),
+  bulkImport: (data) => api.post('/keys/bulk-import', data),
   update: (id, data) => api.put(`/keys/${id}`, data),
   checkout: (id, data) => api.post(`/keys/${id}/checkout`, data),
   return: (id, data) => api.post(`/keys/${id}/return`, data),
