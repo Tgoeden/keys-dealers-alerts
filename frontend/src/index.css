@@ -169,6 +169,44 @@ code, .font-mono {
   @apply bg-red-500/20 text-red-400 border-red-500/30;
 }
 
+/* Key cards */
+.key-card {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #111113;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.key-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.key-card.available {
+  border-left: 3px solid #22c55e;
+}
+
+.key-card.checked-out {
+  border-left: 3px solid #f59e0b;
+}
+
+.key-card p,
+.key-card span {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .key-card {
+    padding: 0.875rem;
+  }
+  
+  .key-card .stock-number {
+    font-size: 1rem;
+  }
+}
+
 /* Stock number styling */
 .stock-number {
   font-family: var(--font-mono);
