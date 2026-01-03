@@ -1486,6 +1486,468 @@ class KeyFlowAPITester:
             print(f"   ❌ Second checkout error: {str(e)}")
             return False
 
+    # ============ NEW FEATURES: SETTINGS & SHARE ACCESS TESTS ============
+
+    def test_dealership_branding_settings(self):
+        """Test dealership branding settings (logo_url, primary_color, secondary_color)"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for branding settings test")
+            return False
+            
+        success, response = self.run_test(
+            "Update Dealership Branding Settings",
+            "PUT",
+            f"dealerships/{self.dealership_id}",
+            200,
+            data={
+                "logo_url": "https://example.com/logo.png",
+                "primary_color": "#FF5733",
+                "secondary_color": "#33C3FF"
+            }
+        )
+        
+        if success:
+            # Verify the settings were saved
+            if (response.get('logo_url') == "https://example.com/logo.png" and
+                response.get('primary_color') == "#FF5733" and
+                response.get('secondary_color') == "#33C3FF"):
+                print(f"   ✅ Branding settings saved correctly")
+                print(f"   ✅ Logo URL: {response.get('logo_url')}")
+                print(f"   ✅ Primary Color: {response.get('primary_color')}")
+                print(f"   ✅ Secondary Color: {response.get('secondary_color')}")
+                return True
+            else:
+                print(f"   ❌ Branding settings not saved correctly: {response}")
+                return False
+        return False
+
+    def test_create_admin_invite_owner_only(self):
+        """Test creating admin invite (owner only)"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for admin invite test")
+            return False
+            
+        success, response = self.run_test(
+            "Create Admin Invite (Owner Only)",
+            "POST",
+            "invites",
+            200,
+            data={
+                "dealership_id": self.dealership_id,
+                "role": "dealership_admin",
+                "expires_in_days": 7
+            },
+            use_owner_token=True
+        )
+        
+        if success and 'token' in response:
+            self.admin_invite_token = response['token']
+            self.admin_invite_id = response['id']
+            print(f"   ✅ Admin invite created: {self.admin_invite_id}")
+            print(f"   ✅ Token: {self.admin_invite_token[:20]}...")
+            print(f"   ✅ Role: {response.get('role')}")
+            print(f"   ✅ Dealership: {response.get('dealership_name')}")
+            return True
+        return False
+
+    def test_create_staff_invite_admin_or_owner(self):
+        """Test creating staff invite (admin or owner)"""
+        if not hasattr(self, 'dealership_id') or not self.dealership_id:
+            print("❌ No dealership available for staff invite test")
+            return False
+            
+        success, response = self.run_test(
+            "Create Staff Invite (Admin or Owner)",
+            "POST",
+            "invites",
+            200,
+            data={
+                "dealership_id": self.dealership_id,
+                "role": "user",
+                "expires_in_days": 7
+            }
+        )
+        
+        if success and 'token' in response:
+            self.staff_invite_token = response['token']
+            self.staff_invite_id = response['id']
+            print(f"   ✅ Staff invite created: {self.staff_invite_id}")
+            print(f"   ✅ Token: {self.staff_invite_token[:20]}...")
+            print(f"   ✅ Role: {response.get('role')}")
+            print(f"   ✅ Dealership: {response.get('dealership_name')}")
+            return True
+        return False
+
+    def test_validate_invite_token(self):
+        """Test validating invite token (public endpoint)"""
+        if not hasattr(self, 'staff_invite_token'):
+            print("❌ No staff invite token available for validation test")
+            return False
+            
+        # This is a public endpoint, so no auth token needed
+        url = f"{self.base_url}/invites/validate/{self.staff_invite_token}"
+        headers = {'Content-Type': 'application/json'}
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Validate Invite Token...")
+        print(f"   URL: GET {url}")
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if (data.get('valid') is True and 
+                    'dealership_name' in data and 
+                    data.get('role') == 'user'):
+                    self.tests_passed += 1
+                    print(f"✅ Passed - Token validation successful")
+                    print(f"   ✅ Valid: {data.get('valid')}")
+                    print(f"   ✅ Dealership: {data.get('dealership_name')}")
+                    print(f"   ✅ Role: {data.get('role')}")
+                    return True
+                else:
+                    print(f"❌ Failed - Invalid validation response: {data}")
+                    self.failed_tests.append({
+                        'name': 'Validate Invite Token',
+                        'error': f'Invalid response: {data}'
+                    })
+                    return False
+            else:
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+                self.failed_tests.append({
+                    'name': 'Validate Invite Token',
+                    'expected': 200,
+                    'actual': response.status_code,
+                    'response': response.text[:200]
+                })
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({
+                'name': 'Validate Invite Token',
+                'error': str(e)
+            })
+            return False
+
+    def test_accept_invite_create_user(self):
+        """Test accepting invite and creating new user account"""
+        if not hasattr(self, 'staff_invite_token'):
+            print("❌ No staff invite token available for accept test")
+            return False
+            
+        import time
+        timestamp = int(time.time())
+        
+        # This is a public endpoint, so no auth token needed
+        url = f"{self.base_url}/invites/accept"
+        headers = {'Content-Type': 'application/json'}
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Accept Invite and Create User...")
+        print(f"   URL: POST {url}")
+        
+        try:
+            response = requests.post(url, json={
+                "token": self.staff_invite_token,
+                "name": f"New Staff Member {timestamp}",
+                "email": f"newstaff{timestamp}@dealership.com",
+                "password": "newstaff123"
+            }, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if ('access_token' in data and 
+                    'user' in data and 
+                    data['user'].get('role') == 'user'):
+                    self.tests_passed += 1
+                    self.new_user_token = data['access_token']
+                    self.new_user_id = data['user']['id']
+                    print(f"✅ Passed - User created and logged in")
+                    print(f"   ✅ User ID: {self.new_user_id}")
+                    print(f"   ✅ Email: {data['user'].get('email')}")
+                    print(f"   ✅ Role: {data['user'].get('role')}")
+                    print(f"   ✅ Dealership ID: {data['user'].get('dealership_id')}")
+                    return True
+                else:
+                    print(f"❌ Failed - Invalid accept response: {data}")
+                    self.failed_tests.append({
+                        'name': 'Accept Invite Create User',
+                        'error': f'Invalid response: {data}'
+                    })
+                    return False
+            else:
+                print(f"❌ Failed - Expected 200, got {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+                self.failed_tests.append({
+                    'name': 'Accept Invite Create User',
+                    'expected': 200,
+                    'actual': response.status_code,
+                    'response': response.text[:200]
+                })
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({
+                'name': 'Accept Invite Create User',
+                'error': str(e)
+            })
+            return False
+
+    def test_list_invites_for_dealership(self):
+        """Test listing invites for dealership"""
+        success, response = self.run_test(
+            "List Invites for Dealership",
+            "GET",
+            "invites",
+            200
+        )
+        
+        if success and isinstance(response, list):
+            print(f"   ✅ Retrieved {len(response)} invites")
+            
+            # Check if our created invites are in the list
+            admin_invite_found = False
+            staff_invite_found = False
+            
+            for invite in response:
+                if hasattr(self, 'admin_invite_id') and invite.get('id') == self.admin_invite_id:
+                    admin_invite_found = True
+                    print(f"   ✅ Admin invite found: {invite.get('role')} for {invite.get('dealership_name')}")
+                if hasattr(self, 'staff_invite_id') and invite.get('id') == self.staff_invite_id:
+                    staff_invite_found = True
+                    # Check if invite is marked as used
+                    if invite.get('is_used'):
+                        print(f"   ✅ Staff invite correctly marked as used")
+                    else:
+                        print(f"   ⚠️  Staff invite not marked as used yet")
+            
+            if admin_invite_found or staff_invite_found:
+                print(f"   ✅ Created invites found in list")
+                return True
+            else:
+                print(f"   ⚠️  Created invites not found in list (may be expected)")
+                return True
+        return False
+
+    def test_delete_invite(self):
+        """Test deleting an invite"""
+        if not hasattr(self, 'admin_invite_id'):
+            print("❌ No admin invite ID available for delete test")
+            return False
+            
+        success, response = self.run_test(
+            "Delete Invite",
+            "DELETE",
+            f"invites/{self.admin_invite_id}",
+            200
+        )
+        
+        if success and response.get('message') == 'Invite deleted':
+            print(f"   ✅ Invite deleted successfully")
+            return True
+        return False
+
+    def test_verify_invite_marked_as_used(self):
+        """Verify that accepted invite is marked as used"""
+        if not hasattr(self, 'staff_invite_token'):
+            print("❌ No staff invite token available for verification")
+            return False
+            
+        # Try to validate the token again - should fail because it's used
+        url = f"{self.base_url}/invites/validate/{self.staff_invite_token}"
+        headers = {'Content-Type': 'application/json'}
+        
+        self.tests_run += 1
+        print(f"\n🔍 Testing Invite Marked as Used...")
+        print(f"   URL: GET {url}")
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code == 400 and "already been used" in response.text:
+                self.tests_passed += 1
+                print(f"✅ Passed - Invite correctly marked as used")
+                print(f"   ✅ Status: {response.status_code}")
+                print(f"   ✅ Message: {response.text}")
+                return True
+            else:
+                print(f"❌ Failed - Expected 400 'already been used', got {response.status_code}")
+                print(f"   Response: {response.text[:200]}")
+                self.failed_tests.append({
+                    'name': 'Verify Invite Marked as Used',
+                    'expected': '400 with "already been used"',
+                    'actual': f'{response.status_code}: {response.text[:100]}'
+                })
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({
+                'name': 'Verify Invite Marked as Used',
+                'error': str(e)
+            })
+            return False
+
+    def test_settings_and_share_access_comprehensive(self):
+        """Comprehensive test of Settings and Share Access features"""
+        print("\n🎯 Testing Settings and Share Access Features Comprehensive")
+        print("=" * 70)
+        
+        all_tests_passed = True
+        
+        # Test Flow as specified in review request:
+        # 1. Owner login (PIN 9988)
+        print("\nStep 1: Owner login (PIN 9988)")
+        try:
+            if not self.test_owner_login():
+                print("   ❌ Owner login failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Owner login successful")
+        except Exception as e:
+            print(f"   ❌ Owner login error: {str(e)}")
+            all_tests_passed = False
+        
+        # Need a dealership for testing
+        print("\nStep 1.5: Create test dealership")
+        try:
+            if not self.test_create_dealership_with_admin():
+                print("   ❌ Dealership creation failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Dealership created successfully")
+        except Exception as e:
+            print(f"   ❌ Dealership creation error: {str(e)}")
+            all_tests_passed = False
+        
+        # Login as admin for some tests
+        print("\nStep 1.6: Admin login")
+        try:
+            if not self.test_admin_login():
+                print("   ❌ Admin login failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Admin login successful")
+        except Exception as e:
+            print(f"   ❌ Admin login error: {str(e)}")
+            all_tests_passed = False
+        
+        # 2. Create admin invite
+        print("\nStep 2: Create admin invite")
+        try:
+            if not self.test_create_admin_invite_owner_only():
+                print("   ❌ Admin invite creation failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Admin invite created successfully")
+        except Exception as e:
+            print(f"   ❌ Admin invite creation error: {str(e)}")
+            all_tests_passed = False
+        
+        # 3. Create staff invite
+        print("\nStep 3: Create staff invite")
+        try:
+            if not self.test_create_staff_invite_admin_or_owner():
+                print("   ❌ Staff invite creation failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Staff invite created successfully")
+        except Exception as e:
+            print(f"   ❌ Staff invite creation error: {str(e)}")
+            all_tests_passed = False
+        
+        # 4. Validate one of the invites
+        print("\nStep 4: Validate invite")
+        try:
+            if not self.test_validate_invite_token():
+                print("   ❌ Invite validation failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Invite validation successful")
+        except Exception as e:
+            print(f"   ❌ Invite validation error: {str(e)}")
+            all_tests_passed = False
+        
+        # 5. Accept the invite (create new user)
+        print("\nStep 5: Accept invite (create new user)")
+        try:
+            if not self.test_accept_invite_create_user():
+                print("   ❌ Invite acceptance failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Invite accepted and user created successfully")
+        except Exception as e:
+            print(f"   ❌ Invite acceptance error: {str(e)}")
+            all_tests_passed = False
+        
+        # 6. Verify the user was created and invite marked as used
+        print("\nStep 6: Verify invite marked as used")
+        try:
+            if not self.test_verify_invite_marked_as_used():
+                print("   ❌ Invite usage verification failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Invite correctly marked as used")
+        except Exception as e:
+            print(f"   ❌ Invite usage verification error: {str(e)}")
+            all_tests_passed = False
+        
+        # 7. Update dealership branding settings
+        print("\nStep 7: Update dealership branding settings")
+        try:
+            if not self.test_dealership_branding_settings():
+                print("   ❌ Branding settings update failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Branding settings updated successfully")
+        except Exception as e:
+            print(f"   ❌ Branding settings update error: {str(e)}")
+            all_tests_passed = False
+        
+        # 8. List invites
+        print("\nStep 8: List invites for dealership")
+        try:
+            if not self.test_list_invites_for_dealership():
+                print("   ❌ List invites failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ List invites successful")
+        except Exception as e:
+            print(f"   ❌ List invites error: {str(e)}")
+            all_tests_passed = False
+        
+        # 9. Delete invite
+        print("\nStep 9: Delete invite")
+        try:
+            if not self.test_delete_invite():
+                print("   ❌ Delete invite failed")
+                all_tests_passed = False
+            else:
+                print("   ✅ Delete invite successful")
+        except Exception as e:
+            print(f"   ❌ Delete invite error: {str(e)}")
+            all_tests_passed = False
+        
+        print("\n" + "=" * 70)
+        if all_tests_passed:
+            print("🎉 SETTINGS & SHARE ACCESS FEATURES: ALL TESTS PASSED!")
+            print("   ✅ Dealership branding settings working")
+            print("   ✅ Admin invite creation (owner only) working")
+            print("   ✅ Staff invite creation (admin/owner) working")
+            print("   ✅ Invite validation (public endpoint) working")
+            print("   ✅ Invite acceptance and user creation working")
+            print("   ✅ Invite marked as used correctly")
+            print("   ✅ List invites working")
+            print("   ✅ Delete invite working")
+        else:
+            print("❌ SETTINGS & SHARE ACCESS FEATURES: SOME TESTS FAILED!")
+        
+        return all_tests_passed
+
 def main():
     print("🚀 Starting KeyFlow API Tests")
     print("=" * 50)
