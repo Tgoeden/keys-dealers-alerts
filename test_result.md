@@ -101,3 +101,92 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "KeyFlow app - Sales goal saving fails with 'failed to save' error when user tries to set yearly sales goal (e.g., 85)"
+
+backend:
+  - task: "Sales Goal Create/Update API"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "User reported: 'I attempted to save a users sales goals as 85 and then save it but it told me failed to save'"
+      - working: true
+        agent: "main"
+        comment: "Fixed bug in create_sales_goal endpoint - was trying to access non-existent fields (yearly_leads_target, yearly_writeups_target, yearly_appointments_target) that were not in SalesGoalCreate model. Removed these fields from the document creation."
+
+  - task: "Authentication APIs (login, demo-login, owner-login)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Auth endpoints working - demo login, owner login (PIN 9988), regular login all functional"
+
+  - task: "Key Management CRUD APIs"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Key create, checkout, return APIs verified working"
+
+frontend:
+  - task: "Sales Tracker Goal Modal"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/SalesTracker.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: false
+        agent: "user"
+        comment: "User reported save failed when setting goal to 85"
+      - working: true
+        agent: "main"
+        comment: "Frontend was correct - issue was in backend. After backend fix, goal modal saves successfully with toast 'Sales goal saved!'"
+
+  - task: "Sales Progress Display"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/SalesTracker.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Progress display showing correctly - 0/85 sales, 85 more sales needed, 1.6/week, 7.1/month calculations"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Sales Goal Create/Update API"
+    - "Sales Tracker Goal Modal"
+    - "Sales Progress Display"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Fixed critical bug in sales goal API. The create_sales_goal endpoint was trying to access fields (yearly_leads_target, yearly_writeups_target, yearly_appointments_target) that don't exist in the SalesGoalCreate Pydantic model. Removed these fields from the document creation. Verified via curl that creating goal with {year: 2025, yearly_sales_target: 85} works. Screenshot verified frontend works end-to-end. Please test: 1) Demo login 2) Navigate to Sales Tracker 3) Set a goal (e.g., 85) 4) Verify goal saves and displays correctly 5) Test editing the goal."
