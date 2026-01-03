@@ -351,7 +351,7 @@ async def owner_login(data: OwnerLogin):
         }
         await db.users.insert_one(owner)
     
-    token = create_token(owner["id"], owner["email"], owner["role"])
+    token = create_token(owner["id"], owner["email"], owner["role"], None, data.remember_me)
     user_response = UserResponse(
         id=owner["id"],
         email=owner["email"],
