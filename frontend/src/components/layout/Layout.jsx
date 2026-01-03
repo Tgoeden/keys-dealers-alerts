@@ -91,13 +91,28 @@ export const Layout = ({ children }) => {
     <div className="app-container">
       {/* Top Navigation Bar */}
       <header className="top-nav">
-        {/* Logo */}
-        <div 
-          className="flex items-center gap-3 cursor-pointer select-none"
-          onClick={handleLogoClick}
-          data-testid="nav-logo"
-        >
-          <img src={LOGO_URL} alt="KeyFlow" className="h-8 w-auto" />
+        {/* Logo + Back to KeyFlow button (when in Sales Tracker) */}
+        <div className="flex items-center gap-3">
+          <div 
+            className="flex items-center gap-3 cursor-pointer select-none"
+            onClick={handleLogoClick}
+            data-testid="nav-logo"
+          >
+            <img src={LOGO_URL} alt="KeyFlow" className="h-8 w-auto" />
+          </div>
+          
+          {/* Back to KeyFlow button - shown next to logo when in Sales Tracker */}
+          {location.pathname === '/sales-tracker' && (
+            <Button
+              onClick={() => navigate('/keys')}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1.5 rounded-lg text-sm"
+              data-testid="back-to-keyflow-btn"
+            >
+              <Key className="w-4 h-4" />
+              <span className="hidden sm:inline">Back to KeyFlow</span>
+              <span className="sm:hidden">KeyFlow</span>
+            </Button>
+          )}
         </div>
 
         {/* Center - Current Page + Navigation */}
@@ -122,19 +137,10 @@ export const Layout = ({ children }) => {
           ))}
         </div>
 
-        {/* Right Side - Sales Tracker / Back to KeyFlow + Menu */}
+        {/* Right Side - Sales Tracker + Menu */}
         <div className="flex items-center gap-3">
-          {/* Sales Tracker Button - Changes to "Back to KeyFlow" when on Sales Tracker page */}
-          {location.pathname === '/sales-tracker' ? (
-            <Button
-              onClick={() => navigate('/keys')}
-              className="hidden sm:flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg"
-              data-testid="back-to-keyflow-btn"
-            >
-              <Key className="w-5 h-5" />
-              <span>Back to KeyFlow</span>
-            </Button>
-          ) : (
+          {/* Sales Tracker Button - Only show when NOT on Sales Tracker page */}
+          {location.pathname !== '/sales-tracker' && (
             <Button
               onClick={() => navigate('/sales-tracker')}
               className="sales-tracker-btn hidden sm:flex"
