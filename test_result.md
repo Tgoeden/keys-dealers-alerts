@@ -234,10 +234,10 @@ metadata:
 
 test_plan:
   current_focus:
+    - "CSV Bulk Import for Keys"
+    - "Notes History on Keys"
     - "Remember Me / Keep me signed in Feature"
     - "Sales Goal Create/Update API"
-    - "Sales Tracker Goal Modal"
-    - "Sales Progress Display"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
