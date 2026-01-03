@@ -642,6 +642,70 @@ async def create_key(data: KeyCreate, user: dict = Depends(require_role(UserRole
     await db.keys.insert_one(doc)
     return KeyResponse(**doc)
 
+@api_router.post("/keys/bulk-import")
+async def bulk_import_keys(data: KeyBulkImportRequest, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Bulk import keys from CSV data. Format: condition, stock_number, year, make, model"""
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and data.dealership_id != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot import keys for other dealerships")
+    
+    # Check demo limits
+    if user.get("is_demo"):
+        current_count = await db.keys.count_documents({"dealership_id": data.dealership_id, "is_active": True})
+        if current_count + len(data.keys) > DEMO_MAX_KEYS:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Demo account limited to {DEMO_MAX_KEYS} keys. You have {current_count} keys and are trying to add {len(data.keys)}."
+            )
+    
+    created_keys = []
+    errors = []
+    
+    for idx, key_data in enumerate(data.keys):
+        try:
+            # Validate condition
+            condition = key_data.condition.lower().strip()
+            if condition not in ['new', 'used']:
+                errors.append({"row": idx + 1, "error": f"Invalid condition '{key_data.condition}'. Must be 'new' or 'used'."})
+                continue
+            
+            # Check for duplicate stock number
+            existing = await db.keys.find_one({
+                "dealership_id": data.dealership_id, 
+                "stock_number": key_data.stock_number,
+                "is_active": True
+            })
+            if existing:
+                errors.append({"row": idx + 1, "error": f"Stock number '{key_data.stock_number}' already exists."})
+                continue
+            
+            key_id = str(uuid.uuid4())
+            doc = {
+                "id": key_id,
+                "stock_number": key_data.stock_number.strip(),
+                "vehicle_year": key_data.vehicle_year,
+                "vehicle_make": key_data.vehicle_make.strip() if key_data.vehicle_make else None,
+                "vehicle_model": key_data.vehicle_model.strip(),
+                "vehicle_vin": None,
+                "condition": condition,
+                "dealership_id": data.dealership_id,
+                "status": KeyStatus.AVAILABLE,
+                "current_checkout": None,
+                "notes_history": [],
+                "is_active": True,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.keys.insert_one(doc)
+            created_keys.append(doc)
+        except Exception as e:
+            errors.append({"row": idx + 1, "error": str(e)})
+    
+    return {
+        "success": True,
+        "imported": len(created_keys),
+        "errors": errors,
+        "total_submitted": len(data.keys)
+    }
+
 @api_router.get("/keys", response_model=List[KeyResponse])
 async def get_keys(dealership_id: Optional[str] = None, status: Optional[str] = None, user: dict = Depends(get_current_user)):
     query = {"is_active": True}
