@@ -68,6 +68,7 @@ class UserLogin(BaseModel):
 
 class OwnerLogin(BaseModel):
     pin: str
+    remember_me: bool = False
 
 class UserResponse(BaseModel):
     id: str
