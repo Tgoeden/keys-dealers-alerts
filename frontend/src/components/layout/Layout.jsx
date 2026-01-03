@@ -214,16 +214,28 @@ export const Layout = ({ children }) => {
                       {item.label}
                     </NavLink>
                   ))}
-                  <NavLink
-                    to="/sales-tracker"
-                    onClick={() => setMenuOpen(false)}
-                    className={({ isActive }) =>
-                      cn('menu-item text-emerald-400', isActive && 'active')
-                    }
-                  >
-                    <TrendingUp className="w-4 h-4" />
-                    Sales Tracker
-                  </NavLink>
+                  {/* Sales Tracker / Back to KeyFlow in mobile menu */}
+                  {location.pathname === '/sales-tracker' ? (
+                    <NavLink
+                      to="/keys"
+                      onClick={() => setMenuOpen(false)}
+                      className="menu-item text-slate-300"
+                    >
+                      <Key className="w-4 h-4" />
+                      Back to KeyFlow
+                    </NavLink>
+                  ) : (
+                    <NavLink
+                      to="/sales-tracker"
+                      onClick={() => setMenuOpen(false)}
+                      className={({ isActive }) =>
+                        cn('menu-item text-emerald-400', isActive && 'active')
+                      }
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      Sales Tracker
+                    </NavLink>
+                  )}
                 </div>
 
                 {(isDealershipAdmin || isOwner) && (
