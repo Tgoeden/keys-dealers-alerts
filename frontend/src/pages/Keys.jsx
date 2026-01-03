@@ -68,6 +68,8 @@ const Keys = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
   const [demoLimits, setDemoLimits] = useState(null);
 
