@@ -590,6 +590,8 @@ def main():
         ("Checkout Key", tester.test_checkout_key),
         ("Return Key", tester.test_return_key),
         ("Create Sales Goal", tester.test_create_sales_goal),
+        ("Get Sales Goals", tester.test_get_sales_goals),
+        ("Update Sales Goal", tester.test_update_sales_goal),
         ("Log Daily Activity", tester.test_log_daily_activity),
         ("Get Sales Progress", tester.test_get_sales_progress),
         ("Get Keys List", tester.test_get_keys),
