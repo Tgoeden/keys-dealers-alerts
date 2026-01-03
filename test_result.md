@@ -204,6 +204,7 @@ metadata:
 
 test_plan:
   current_focus:
+    - "Remember Me / Keep me signed in Feature"
     - "Sales Goal Create/Update API"
     - "Sales Tracker Goal Modal"
     - "Sales Progress Display"
