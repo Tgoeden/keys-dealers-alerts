@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -42,7 +42,7 @@ const Login = () => {
     try {
       await login(email, password);
       toast.success('Welcome back!');
-      navigate('/dashboard');
+      navigate('/keys');
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid credentials');
     } finally {
@@ -56,7 +56,7 @@ const Login = () => {
     try {
       await demoLogin();
       toast.success('Welcome to the demo! Explore KeyFlow features.');
-      navigate('/dashboard');
+      navigate('/keys');
     } catch (err) {
       setError(err.response?.data?.detail || 'Demo login failed');
     } finally {
@@ -92,12 +92,12 @@ const Login = () => {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome to KeyFlow</h1>
-          <p className="text-slate-500">Sign in to manage your dealership keys</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Welcome to KeyFlow</h1>
+          <p className="text-slate-400">Sign in to manage your dealership keys</p>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-100 rounded-xl mb-6 text-red-600" data-testid="login-error">
+          <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-xl mb-6 text-red-400" data-testid="login-error">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
             <span className="text-sm">{error}</span>
           </div>
@@ -107,8 +107,7 @@ const Login = () => {
         <div className="mb-6">
           <Button
             type="button"
-            variant="outline"
-            className="w-full h-14 text-base border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800"
+            className="w-full h-14 text-base bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-semibold"
             onClick={handleDemoLogin}
             disabled={demoLoading}
             data-testid="demo-login-btn"
@@ -123,25 +122,24 @@ const Login = () => {
 
         <div className="relative mb-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-slate-200" />
+            <span className="w-full border-t border-white/10" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-4 text-slate-500">Or sign in with credentials</span>
+            <span className="bg-[#111113] px-4 text-slate-500">Or sign in with credentials</span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label className="text-slate-300">Email</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
               <Input
-                id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@dealership.com"
-                className="pl-10 h-12"
+                className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder-slate-500"
                 required
                 data-testid="login-email"
               />
@@ -149,23 +147,22 @@ const Login = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label className="text-slate-300">Password</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
               <Input
-                id="password"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="pl-10 pr-10 h-12"
+                className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder-slate-500"
                 required
                 data-testid="login-password"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -174,7 +171,7 @@ const Login = () => {
 
           <Button
             type="submit"
-            className="w-full h-12 text-base"
+            className="w-full h-12 text-base btn-primary"
             disabled={loading}
             data-testid="login-submit"
           >
@@ -183,10 +180,7 @@ const Login = () => {
         </form>
 
         <p className="text-center text-slate-500 text-sm mt-6">
-          Need an account?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">
-            Contact your administrator
-          </Link>
+          Need an account? Contact your administrator
         </p>
       </div>
 
@@ -226,10 +220,10 @@ const OwnerPinModal = ({ onClose, onSubmit }) => {
         onClick={(e) => e.stopPropagation()}
         data-testid="owner-pin-modal"
       >
-        <h3 className="text-lg font-semibold text-slate-900 mb-2 text-center">
+        <h3 className="text-lg font-semibold text-white mb-2 text-center">
           Owner Access
         </h3>
-        <p className="text-slate-500 text-sm text-center mb-6">
+        <p className="text-slate-400 text-sm text-center mb-6">
           Enter your secure PIN to continue
         </p>
         <form onSubmit={handleSubmit}>
@@ -238,26 +232,26 @@ const OwnerPinModal = ({ onClose, onSubmit }) => {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             placeholder="••••"
-            className="w-full px-4 py-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-center text-3xl tracking-[0.5em] font-mono"
+            className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-center text-3xl tracking-[0.5em] font-mono text-white"
             maxLength={6}
             autoFocus
             data-testid="owner-pin-input"
           />
           {error && (
-            <p className="text-red-500 text-sm mt-3 text-center">{error}</p>
+            <p className="text-red-400 text-sm mt-3 text-center">{error}</p>
           )}
           <div className="flex gap-3 mt-6">
             <Button
               type="button"
               variant="outline"
-              className="flex-1 h-11"
+              className="flex-1 h-11 border-white/20 text-white hover:bg-white/10"
               onClick={onClose}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 h-11"
+              className="flex-1 h-11 btn-primary"
               disabled={loading || pin.length < 4}
               data-testid="owner-pin-submit"
             >
