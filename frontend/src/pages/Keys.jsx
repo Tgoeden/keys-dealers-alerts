@@ -305,6 +305,10 @@ const Keys = () => {
                   setSelectedKey(key);
                   setShowReturnModal(true);
                 }}
+                onViewNotes={() => {
+                  setSelectedKey(key);
+                  setShowNotesModal(true);
+                }}
               />
             ))}
           </div>
@@ -317,6 +321,27 @@ const Keys = () => {
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddKey}
         isRV={isRV}
+      />
+
+      {/* Import Keys Modal */}
+      <ImportKeysModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          setShowImportModal(false);
+          fetchKeys();
+        }}
+        dealershipId={selectedDealership || user?.dealership_id}
+      />
+
+      {/* Notes Modal */}
+      <NotesModal
+        open={showNotesModal}
+        onClose={() => {
+          setShowNotesModal(false);
+          setSelectedKey(null);
+        }}
+        keyData={selectedKey}
       />
 
       {/* Checkout Modal */}
