@@ -5,6 +5,7 @@ import { Toaster } from "./components/ui/sonner";
 
 // Pages
 import Login from "./pages/Login";
+import Join from "./pages/Join";
 import Dashboard from "./pages/Dashboard";
 import Keys from "./pages/Keys";
 import SalesTracker from "./pages/SalesTracker";
