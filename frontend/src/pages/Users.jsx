@@ -215,12 +215,12 @@ const Users = () => {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           {isOwner && (
-            <Select value={selectedDealership} onValueChange={setSelectedDealership}>
+            <Select value={selectedDealership || "all"} onValueChange={(v) => setSelectedDealership(v === "all" ? "" : v)}>
               <SelectTrigger className="w-full sm:w-64 bg-[#111113] border-[#1f1f23] text-white" data-testid="dealership-filter">
                 <SelectValue placeholder="All Dealerships" />
               </SelectTrigger>
               <SelectContent className="bg-[#111113] border-[#1f1f23]">
-                <SelectItem value="">All Dealerships</SelectItem>
+                <SelectItem value="all">All Dealerships</SelectItem>
                 {dealerships.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name}
