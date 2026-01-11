@@ -81,6 +81,7 @@ const Keys = () => {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showPDIModal, setShowPDIModal] = useState(false);
+  const [showFlagAttentionModal, setShowFlagAttentionModal] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
   const [demoLimits, setDemoLimits] = useState(null);
 
