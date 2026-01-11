@@ -10,6 +10,9 @@ import {
   Mail,
   Building2,
   AlertTriangle,
+  User,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -41,6 +44,16 @@ import {
 } from '../components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import api from '../lib/api';
+
+// Standard user roles
+const STANDARD_ROLES = [
+  { id: 'sales', name: 'Sales' },
+  { id: 'service', name: 'Service' },
+  { id: 'delivery', name: 'Delivery' },
+  { id: 'porter', name: 'Porter' },
+  { id: 'lot_tech', name: 'Lot Tech' },
+];
 
 const Users = () => {
   const { user, isOwner, isDealershipAdmin, isDemo } = useAuth();
