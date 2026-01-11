@@ -1604,4 +1604,199 @@ const PDIStatusModal = ({ open, onClose, keyData, onUpdate }) => {
   );
 };
 
+// Flag Attention Modal (without requiring checkout)
+const FlagAttentionModal = ({ open, onClose, keyData, onSuccess }) => {
+  const { user } = useAuth();
+  const [notes, setNotes] = useState('');
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setNotes('');
+      setImages([]);
+    }
+  }, [open]);
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    const remainingSlots = 3 - images.length;
+    const filesToUpload = files.slice(0, remainingSlots);
+    
+    setUploading(true);
+    try {
+      const uploadedUrls = [];
+      for (const file of filesToUpload) {
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+        
+        const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/upload-image-base64`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('keyflow_token')}`
+          },
+          body: JSON.stringify({ image: base64 })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          uploadedUrls.push(`${process.env.REACT_APP_BACKEND_URL}${data.url}`);
+        }
+      }
+      setImages([...images, ...uploadedUrls]);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (idx) => {
+    setImages(images.filter((_, i) => i !== idx));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!notes.trim()) {
+      toast.error('Please add notes describing the issue');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/keys/${keyData.id}/flag-attention?notes=${encodeURIComponent(notes)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('keyflow_token')}`
+        },
+        body: JSON.stringify({ images })
+      });
+      toast.success('Unit flagged for attention');
+      onSuccess();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to flag unit');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!keyData) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-md" data-testid="flag-attention-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-red-400">
+            <AlertTriangle className="w-5 h-5" />
+            Flag Unit Needs Attention
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="mb-4 p-4 bg-slate-800/50 rounded-xl">
+          <p className="font-mono font-semibold text-lg text-white">#{keyData.stock_number}</p>
+          <p className="text-slate-400 text-sm">{keyData.vehicle_year} {keyData.vehicle_make} {keyData.vehicle_model}</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-slate-300">What needs attention? *</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Describe the issue (damage, mechanical problem, low fuel, etc.)..."
+              rows={3}
+              className="bg-white/5 border-white/10 text-white"
+              data-testid="flag-attention-notes"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-slate-300">Photos (optional, up to 3)</Label>
+            
+            {images.length > 0 && (
+              <div className="flex gap-2 mb-2">
+                {images.map((img, idx) => (
+                  <div key={idx} className="relative group">
+                    <img 
+                      src={img} 
+                      alt={`Upload ${idx + 1}`}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {images.length < 3 && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  {uploading ? 'Uploading...' : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Add Photo
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+            <p className="text-xs text-amber-300">
+              <strong>Note:</strong> This will flag the unit as needing attention. All staff can see flagged units on the "Needs Attention" page.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1 bg-red-600 hover:bg-red-500 text-white"
+              disabled={loading || !notes.trim()}
+              data-testid="flag-attention-submit"
+            >
+              {loading ? 'Flagging...' : 'Flag Unit'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default Keys;
