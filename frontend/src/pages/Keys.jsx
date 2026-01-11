@@ -489,6 +489,53 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick,
           </span>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* PDI Status Badge with Quick Update */}
+          <div className="relative">
+            <button
+              onClick={() => setShowPDIDropdown(!showPDIDropdown)}
+              disabled={updatingPDI}
+              className={`px-2 py-1 rounded text-xs font-medium flex items-center gap-1 transition-all hover:opacity-80 ${pdiInfo.bgColor} ${pdiInfo.textColor} border border-current/30`}
+              data-testid={`pdi-badge-${keyData.stock_number}`}
+            >
+              <span className={`w-2 h-2 rounded-full ${pdiInfo.color}`} />
+              {updatingPDI ? '...' : pdiInfo.label}
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            
+            {showPDIDropdown && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowPDIDropdown(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 bg-[#1a1a1d] border border-white/20 rounded-lg shadow-xl min-w-[160px] py-1">
+                  {PDI_STATUSES.map((pdi) => (
+                    <button
+                      key={pdi.value}
+                      onClick={() => handleQuickPDIUpdate(pdi.value)}
+                      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-white/10 ${
+                        pdiStatus === pdi.value ? 'bg-white/5' : ''
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${pdi.color}`} />
+                      <span className={pdi.textColor}>{pdi.label}</span>
+                      {pdiStatus === pdi.value && <Check className="w-3 h-3 ml-auto text-emerald-400" />}
+                    </button>
+                  ))}
+                  <div className="border-t border-white/10 mt-1 pt-1">
+                    <button
+                      onClick={() => {
+                        setShowPDIDropdown(false);
+                        onPDIClick && onPDIClick();
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-white/10 text-cyan-400"
+                    >
+                      <History className="w-3 h-3" />
+                      View Details / History
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          
           {needsAttention && (
             <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
               <AlertTriangle className="w-3 h-3 mr-1" />
