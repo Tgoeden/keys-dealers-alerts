@@ -69,6 +69,7 @@ export const Layout = ({ children }) => {
         { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
         { label: 'Dealerships', icon: Building2, path: '/dealerships' },
         { label: 'All Keys', icon: Key, path: '/keys' },
+        { label: 'Needs Attention', icon: AlertTriangle, path: '/repairs', highlight: true },
         { label: 'Time Alerts', icon: Clock, path: '/alerts' },
       ];
     }
@@ -76,6 +77,7 @@ export const Layout = ({ children }) => {
     // Admin and User navigation
     return [
       { label: 'Key Management', icon: Key, path: '/keys' },
+      { label: 'Needs Attention', icon: AlertTriangle, path: '/repairs', highlight: true },
       { label: 'User Management', icon: Users, path: '/users', adminOnly: true },
       { label: 'Share Access', icon: Share2, path: '/share', adminOnly: true },
       { label: 'Logs & Reports', icon: FileText, path: '/logs' },
