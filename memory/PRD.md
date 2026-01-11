@@ -12,8 +12,8 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 
 ### Authentication System
 - **Master Owner**: 5-tap logo → enter PIN (9988)
-- **Admin Login**: Select dealership → Enter PIN (quick access)
-- **Staff Login**: Select dealership → Enter name → Enter PIN
+- **Admin Login**: Select dealership (searchable) → Enter PIN (quick access)
+- **Staff Login**: Select dealership (searchable) → Enter name → Enter PIN
 - **Remember Me**: Keeps session active; without it, 6-hour inactivity timeout
 - **Demo Mode**: Quick demo with limited features (4 keys max)
 
@@ -24,6 +24,20 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 - Notes history on each key
 - Filter by status (Available/Checked Out)
 - Bulk CSV import
+
+### PDI Status Feature (NEW - Jan 2026)
+- **Three States**: 
+  - Not PDI Yet (RED badge)
+  - PDI In Progress (YELLOW badge)
+  - PDI Finished (GREEN badge)
+- **Quick Status Update**: Dropdown on each key card for instant status change
+- **Full Audit Logging**: Records who changed status, when, old→new status, optional notes
+- **PDI Filter**: Filter keys by PDI status on dashboard
+- **PDI Modal**: Detailed view with status change form and audit history
+- **Permissions**:
+  - All authenticated users can update PDI status
+  - Admins can view full PDI audit history
+  - Regular users see their own PDI changes
 
 ### Repair/Maintenance Module
 - Flag units as "Needs Attention" during checkout
@@ -55,7 +69,7 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 - **Authentication**: JWT tokens, PIN-based login
 - **Image Storage**: Local file storage (/app/backend/uploads/)
 
-## What's Been Implemented (as of Jan 2026)
+## What's Been Implemented
 
 ### Phase 1: Core MVP ✅
 - User authentication (owner, admin, user roles)
@@ -71,19 +85,21 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 - Share Access with invite links
 - Help page with FAQ
 - Logs & Reports with activity history
-- Deployment readiness
 
-### Phase 3: Major Feature Expansion ✅ (Current)
-- **Admin PIN System**: Admins have their own PIN, separate login flow
-- **User PIN Login**: Staff login with name + PIN only (6-hour inactivity timeout)
-- **Repair/Maintenance Module**: 
-  - "Needs Attention" flag with photos
-  - Repair requests collection
-  - Mark fixed / Admin clear functionality
-  - Dedicated "Needs Attention" page
-- **Custom User Roles**: Sales, Service, Delivery, Porter, Lot Tech + custom
-- **Image Upload**: Local file storage with base64 upload
-- **Sales Tracker Hidden**: Suspended per user request
+### Phase 3: Major Feature Expansion ✅
+- Admin PIN System: Admins have their own PIN, separate login flow
+- User PIN Login: Staff login with name + PIN only (6-hour inactivity timeout)
+- Repair/Maintenance Module with photo uploads
+- Custom User Roles (Sales, Service, Delivery, Porter, Lot Tech + custom)
+- Sales Tracker Hidden
+
+### Phase 4: PDI Status Feature ✅ (Jan 11, 2026)
+- PDI status badges on all key cards (color-coded)
+- Quick dropdown to change status without opening modal
+- PDI status filter on dashboard
+- Full audit log with who/when/what tracking
+- PDI modal with history for admins
+- Searchable dealership dropdown on login
 
 ## API Endpoints
 
@@ -97,11 +113,16 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 - `GET /api/dealerships/public` - Public dealership list for login
 
 ### Keys
-- `GET /api/keys` - Get all keys
+- `GET /api/keys` - Get all keys (supports pdi_status filter)
 - `POST /api/keys` - Create key
 - `POST /api/keys/{id}/checkout` - Checkout with needs_attention flag
 - `POST /api/keys/{id}/return` - Return key
 - `POST /api/keys/{id}/mark-fixed` - Mark as fixed
+
+### PDI Status (NEW)
+- `PUT /api/keys/{id}/pdi-status` - Update PDI status
+- `GET /api/keys/{id}/pdi-audit-log` - Get PDI audit log for a key
+- `GET /api/pdi-audit-log` - Get all PDI audit logs (admin only)
 
 ### Repair Requests
 - `GET /api/repair-requests` - Get repair requests
@@ -109,7 +130,7 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 
 ### Images
 - `POST /api/upload-image-base64` - Upload image
-- `/uploads/{filename}` - Serve uploaded images
+- `/api/uploads/{filename}` - Serve uploaded images
 
 ### Roles
 - `GET /api/dealerships/{id}/roles` - Get roles
@@ -117,20 +138,6 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 - `DELETE /api/dealerships/{id}/roles/{name}` - Remove custom role
 
 ## Database Collections
-
-### users
-```json
-{
-  "id": "uuid",
-  "name": "string",
-  "email": "optional string",
-  "pin": "hashed string",
-  "admin_pin": "hashed string (for admins)",
-  "role": "owner|dealership_admin|sales|service|etc",
-  "dealership_id": "uuid",
-  "created_at": "ISO datetime"
-}
-```
 
 ### keys
 ```json
@@ -142,10 +149,30 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
   "vehicle_year": "int",
   "status": "available|checked_out",
   "attention_status": "none|needs_attention|fixed",
+  "pdi_status": "not_pdi_yet|in_progress|finished",
+  "pdi_last_updated_at": "ISO datetime|null",
+  "pdi_last_updated_by_user_id": "uuid|null",
+  "pdi_last_updated_by_user_name": "string|null",
   "images": ["url", "url", "url"],
   "notes_history": [{...}],
   "current_checkout": {...},
   "dealership_id": "uuid"
+}
+```
+
+### pdi_audit_log (NEW)
+```json
+{
+  "id": "uuid",
+  "key_id": "uuid",
+  "stock_number": "string",
+  "dealership_id": "uuid",
+  "changed_by_user_id": "uuid",
+  "changed_by_user_name": "string",
+  "changed_at": "ISO datetime",
+  "previous_status": "string",
+  "new_status": "string",
+  "notes": "string|null"
 }
 ```
 
@@ -180,4 +207,4 @@ Build a web app called "KeyFlow" for automotive and RV dealerships to manage veh
 ## Test Credentials
 - **Owner**: 5 logo taps → PIN `9988`
 - **Demo**: Click "Try Demo" button
-- **Admin/User**: Create via owner then login with dealership + PIN
+- **Admin (Campers Inn)**: Select dealership → PIN `4777`
