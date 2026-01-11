@@ -1227,6 +1227,11 @@ async def bulk_import_keys(data: KeyBulkImportRequest, user: dict = Depends(requ
                 "current_checkout": None,
                 "notes_history": [],
                 "is_active": True,
+                # PDI Status - default to NOT_PDI_YET
+                "pdi_status": PDIStatus.NOT_PDI_YET,
+                "pdi_last_updated_at": None,
+                "pdi_last_updated_by_user_id": None,
+                "pdi_last_updated_by_user_name": None,
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             await db.keys.insert_one(doc)
