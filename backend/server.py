@@ -48,8 +48,8 @@ app = FastAPI(title="KeyFlow API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
-# Serve uploaded files statically
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+# Serve uploaded files statically through /api/uploads to ensure proper routing
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
