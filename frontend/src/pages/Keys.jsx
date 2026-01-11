@@ -287,6 +287,35 @@ const Keys = () => {
           </div>
         </div>
 
+        {/* PDI Status Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-400 mr-2">PDI Status:</span>
+          <Button
+            variant={pdiFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setPdiFilter('all')}
+            className={pdiFilter === 'all' ? 'btn-primary' : 'border-[#1f1f23] text-slate-400 hover:text-white hover:bg-white/5'}
+            data-testid="pdi-filter-all"
+          >
+            All
+          </Button>
+          {PDI_STATUSES.map((pdi) => (
+            <Button
+              key={pdi.value}
+              variant={pdiFilter === pdi.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setPdiFilter(pdi.value)}
+              className={pdiFilter === pdi.value 
+                ? `${pdi.bgColor} ${pdi.textColor} border-transparent hover:opacity-90` 
+                : 'border-[#1f1f23] text-slate-400 hover:text-white hover:bg-white/5'}
+              data-testid={`pdi-filter-${pdi.value}`}
+            >
+              <span className={`w-2 h-2 rounded-full ${pdi.color} mr-2`} />
+              {pdi.label}
+            </Button>
+          ))}
+        </div>
+
         {/* Keys Grid */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
