@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { authApi } from '../lib/api';
@@ -8,16 +8,9 @@ import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import { 
   Mail, Lock, Eye, EyeOff, AlertCircle, Play, User, 
-  Building2, ChevronLeft, Shield, Users 
+  Building2, ChevronLeft, Shield, Users, Search, Check
 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
 
 // Logo URL - can be customized per deployment
 const LOGO_URL = process.env.REACT_APP_LOGO_URL || "https://customer-assets.emergentagent.com/job_keytrack-2/artifacts/jpgdi733_1000023991.jpg";
@@ -26,6 +19,8 @@ const Login = () => {
   const [loginMode, setLoginMode] = useState('select'); // 'select', 'admin', 'user', 'legacy'
   const [dealerships, setDealerships] = useState([]);
   const [selectedDealership, setSelectedDealership] = useState('');
+  const [dealershipSearch, setDealershipSearch] = useState('');
+  const [showDealershipDropdown, setShowDealershipDropdown] = useState(false);
   const [pin, setPin] = useState('');
   const [userName, setUserName] = useState('');
   const [email, setEmail] = useState('');
@@ -55,6 +50,21 @@ const Login = () => {
     }
   };
 
+  // Filter dealerships based on search
+  const filteredDealerships = useMemo(() => {
+    if (!dealershipSearch.trim()) return dealerships;
+    const searchLower = dealershipSearch.toLowerCase();
+    return dealerships.filter(d => 
+      d.name.toLowerCase().includes(searchLower)
+    );
+  }, [dealerships, dealershipSearch]);
+
+  // Get selected dealership name
+  const selectedDealershipName = useMemo(() => {
+    const d = dealerships.find(d => d.id === selectedDealership);
+    return d ? d.name : '';
+  }, [dealerships, selectedDealership]);
+
   const handleLogoClick = () => {
     const newCount = logoClickCount + 1;
     setLogoClickCount(newCount);
@@ -65,6 +75,12 @@ const Login = () => {
     }
 
     setTimeout(() => setLogoClickCount(0), 2000);
+  };
+
+  const handleSelectDealership = (id, name) => {
+    setSelectedDealership(id);
+    setDealershipSearch(name);
+    setShowDealershipDropdown(false);
   };
 
   const handleAdminLogin = async (e) => {
@@ -146,12 +162,80 @@ const Login = () => {
     setEmail('');
     setPassword('');
     setError('');
+    setDealershipSearch('');
+    setSelectedDealership('');
   };
 
   const goBack = () => {
     resetForm();
     setLoginMode('select');
   };
+
+  // Searchable Dealership Dropdown Component
+  const DealershipSearchDropdown = () => (
+    <div className="space-y-2">
+      <Label className="text-slate-300">Dealership</Label>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 z-10" />
+        <Input
+          type="text"
+          value={dealershipSearch}
+          onChange={(e) => {
+            setDealershipSearch(e.target.value);
+            setShowDealershipDropdown(true);
+            // Clear selection if typing
+            if (selectedDealershipName && e.target.value !== selectedDealershipName) {
+              setSelectedDealership('');
+            }
+          }}
+          onFocus={() => setShowDealershipDropdown(true)}
+          placeholder="Search or select dealership..."
+          className="pl-10 h-12 bg-white/5 border-white/10 text-white"
+          data-testid="dealership-search"
+        />
+        {selectedDealership && (
+          <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-400" />
+        )}
+        
+        {/* Dropdown */}
+        {showDealershipDropdown && (
+          <div className="absolute z-20 w-full mt-1 bg-[#1a1a1d] border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+            {filteredDealerships.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-slate-500">
+                No dealerships found
+              </div>
+            ) : (
+              filteredDealerships.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => handleSelectDealership(d.id, d.name)}
+                  className={`w-full px-4 py-3 text-left text-sm hover:bg-white/10 transition-colors flex items-center justify-between ${
+                    selectedDealership === d.id ? 'bg-cyan-500/20 text-cyan-400' : 'text-white'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-slate-500" />
+                    {d.name}
+                  </span>
+                  {selectedDealership === d.id && (
+                    <Check className="w-4 h-4 text-cyan-400" />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+      {/* Click outside to close */}
+      {showDealershipDropdown && (
+        <div 
+          className="fixed inset-0 z-10" 
+          onClick={() => setShowDealershipDropdown(false)}
+        />
+      )}
+    </div>
+  );
 
   // Role selection screen
   if (loginMode === 'select') {
@@ -211,33 +295,39 @@ const Login = () => {
 
           {/* Login Options */}
           <div className="space-y-3">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              className="w-full h-14 border-cyan-500/30 text-white hover:bg-cyan-500/10 hover:border-cyan-500/50 justify-start px-4"
               onClick={() => setLoginMode('admin')}
+              className="w-full p-4 rounded-xl border border-cyan-500/30 hover:bg-cyan-500/10 hover:border-cyan-500/50 transition-all text-left"
               data-testid="admin-login-option"
             >
-              <Shield className="w-5 h-5 mr-3 text-cyan-400" />
-              <div className="text-left">
-                <p className="font-medium">Admin Login</p>
-                <p className="text-xs text-slate-400">Quick PIN access for dealership admins</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-white">Admin Login</p>
+                  <p className="text-xs text-slate-400 truncate">Quick PIN access</p>
+                </div>
               </div>
-            </Button>
+            </button>
 
-            <Button
+            <button
               type="button"
-              variant="outline"
-              className="w-full h-14 border-white/20 text-white hover:bg-white/5 justify-start px-4"
               onClick={() => setLoginMode('user')}
+              className="w-full p-4 rounded-xl border border-white/20 hover:bg-white/5 hover:border-white/30 transition-all text-left"
               data-testid="user-login-option"
             >
-              <Users className="w-5 h-5 mr-3 text-slate-400" />
-              <div className="text-left">
-                <p className="font-medium">Staff Login</p>
-                <p className="text-xs text-slate-400">Name + PIN for team members</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 text-slate-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-white">Staff Login</p>
+                  <p className="text-xs text-slate-400 truncate">Name + PIN</p>
+                </div>
               </div>
-            </Button>
+            </button>
 
             <Button
               type="button"
@@ -297,22 +387,7 @@ const Login = () => {
           )}
 
           <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-slate-300">Dealership</Label>
-              <Select value={selectedDealership} onValueChange={setSelectedDealership}>
-                <SelectTrigger className="w-full h-12 bg-white/5 border-white/10 text-white" data-testid="dealership-select">
-                  <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                  <SelectValue placeholder="Select your dealership" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#111113] border-[#1f1f23]">
-                  {dealerships.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <DealershipSearchDropdown />
 
             <div className="space-y-2">
               <Label className="text-slate-300">PIN</Label>
@@ -323,7 +398,6 @@ const Login = () => {
                 placeholder="••••••"
                 className="h-12 bg-white/5 border-white/10 text-white text-center text-xl tracking-[0.3em] font-mono"
                 maxLength={6}
-                autoFocus
                 data-testid="admin-pin-input"
               />
             </div>
@@ -392,22 +466,7 @@ const Login = () => {
           )}
 
           <form onSubmit={handleUserLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-slate-300">Dealership</Label>
-              <Select value={selectedDealership} onValueChange={setSelectedDealership}>
-                <SelectTrigger className="w-full h-12 bg-white/5 border-white/10 text-white" data-testid="dealership-select">
-                  <Building2 className="w-4 h-4 mr-2 text-slate-500" />
-                  <SelectValue placeholder="Select your dealership" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#111113] border-[#1f1f23]">
-                  {dealerships.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <DealershipSearchDropdown />
 
             <div className="space-y-2">
               <Label className="text-slate-300">Your Name</Label>
