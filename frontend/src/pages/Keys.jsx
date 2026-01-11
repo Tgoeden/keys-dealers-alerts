@@ -378,10 +378,12 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes }) => {
   const isNew = keyData.condition === 'new';
   const hasNotes = (keyData.notes_history && keyData.notes_history.length > 0) || 
                    (checkout && checkout.notes);
+  const needsAttention = keyData.attention_status === 'needs_attention';
+  const isFixed = keyData.attention_status === 'fixed';
 
   return (
     <div
-      className={`key-card ${isCheckedOut ? 'checked-out' : 'available'}`}
+      className={`key-card ${isCheckedOut ? 'checked-out' : 'available'} ${needsAttention ? 'ring-2 ring-red-500/50' : ''}`}
       data-testid={`key-card-${keyData.stock_number}`}
     >
       <div className="flex items-start justify-between mb-3">
@@ -395,7 +397,18 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes }) => {
             #{keyData.stock_number}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {needsAttention && (
+            <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              Attention
+            </Badge>
+          )}
+          {isFixed && (
+            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+              Fixed
+            </Badge>
+          )}
           <Badge className={isNew ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-500/20 text-slate-400 border-slate-500/30'}>
             {isNew ? 'New' : 'Used'}
           </Badge>
@@ -445,6 +458,20 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes }) => {
           <MessageSquare className="w-3.5 h-3.5" />
           <span>View Notes ({keyData.notes_history?.length || (checkout?.notes ? 1 : 0)})</span>
         </button>
+      )}
+
+      {/* Images Indicator */}
+      {keyData.images && keyData.images.length > 0 && (
+        <div className="mt-2 flex gap-1">
+          {keyData.images.map((img, idx) => (
+            <img 
+              key={idx}
+              src={img} 
+              alt={`Key ${idx + 1}`}
+              className="w-8 h-8 object-cover rounded"
+            />
+          ))}
+        </div>
       )}
 
       <div className="mt-4">
