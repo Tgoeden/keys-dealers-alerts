@@ -51,11 +51,25 @@ logger = logging.getLogger(__name__)
 class UserRole:
     OWNER = "owner"
     DEALERSHIP_ADMIN = "dealership_admin"
-    USER = "user"
+    # Standard user roles (all have same permissions)
+    SALES = "sales"
+    SERVICE = "service"
+    DELIVERY = "delivery"
+    PORTER = "porter"
+    LOT_TECH = "lot_tech"
+    USER = "user"  # Legacy/default
+
+# List of standard roles for validation
+STANDARD_USER_ROLES = [UserRole.SALES, UserRole.SERVICE, UserRole.DELIVERY, UserRole.PORTER, UserRole.LOT_TECH, UserRole.USER]
 
 class DealershipType:
     AUTOMOTIVE = "automotive"
     RV = "rv"
+
+class AttentionStatus:
+    NONE = "none"
+    NEEDS_ATTENTION = "needs_attention"
+    FIXED = "fixed"
 
 # Auth Models
 class UserCreate(BaseModel):
@@ -68,6 +82,11 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    remember_me: bool = False
+
+class AdminLogin(BaseModel):
+    email: EmailStr
+    pin: str
     remember_me: bool = False
 
 class OwnerLogin(BaseModel):
