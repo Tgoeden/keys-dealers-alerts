@@ -1674,13 +1674,13 @@ const FlagAttentionModal = ({ open, onClose, keyData, onSuccess }) => {
     
     setLoading(true);
     try {
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/keys/${keyData.id}/flag-attention?notes=${encodeURIComponent(notes)}`, {
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/keys/${keyData.id}/flag-attention`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('keyflow_token')}`
         },
-        body: JSON.stringify({ images })
+        body: JSON.stringify({ notes, images })
       });
       toast.success('Unit flagged for attention');
       onSuccess();
