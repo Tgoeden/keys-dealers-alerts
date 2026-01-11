@@ -1507,6 +1507,71 @@ async def add_key_images(key_id: str, images: List[str], user: dict = Depends(ge
     key = await db.keys.find_one({"id": key_id}, {"_id": 0})
     return KeyResponse(**key)
 
+@api_router.post("/upload-image")
+async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    """Upload an image file and return its URL"""
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF")
+    
+    # Limit file size to 5MB
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
+    
+    # Generate unique filename
+    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = UPLOAD_DIR / filename
+    
+    # Save file
+    with open(filepath, "wb") as f:
+        f.write(content)
+    
+    # Return URL (relative to backend)
+    return {"url": f"/uploads/{filename}"}
+
+@api_router.post("/upload-image-base64")
+async def upload_image_base64(data: dict, user: dict = Depends(get_current_user)):
+    """Upload an image as base64 and return its URL"""
+    image_data = data.get("image")
+    if not image_data:
+        raise HTTPException(status_code=400, detail="No image data provided")
+    
+    # Remove data URL prefix if present
+    if "," in image_data:
+        image_data = image_data.split(",")[1]
+    
+    try:
+        content = base64.b64decode(image_data)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid base64 image data")
+    
+    # Limit file size to 5MB
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB")
+    
+    # Detect file type from content or use jpg
+    ext = "jpg"
+    if content[:8] == b'\x89PNG\r\n\x1a\n':
+        ext = "png"
+    elif content[:4] == b'RIFF' and content[8:12] == b'WEBP':
+        ext = "webp"
+    elif content[:3] == b'GIF':
+        ext = "gif"
+    
+    # Generate unique filename
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = UPLOAD_DIR / filename
+    
+    # Save file
+    with open(filepath, "wb") as f:
+        f.write(content)
+    
+    # Return URL (relative to backend)
+    return {"url": f"/uploads/{filename}"}
+
 @api_router.get("/keys/{key_id}/history")
 async def get_key_history(key_id: str, user: dict = Depends(get_current_user)):
     history = await db.key_history.find({"key_id": key_id}, {"_id": 0}).sort("checked_out_at", -1).to_list(100)
