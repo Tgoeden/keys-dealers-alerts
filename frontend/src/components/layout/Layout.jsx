@@ -138,9 +138,10 @@ export const Layout = ({ children }) => {
           ))}
         </div>
 
-        {/* Right Side - Sales Tracker + Menu */}
+        {/* Right Side - Menu */}
         <div className="flex items-center gap-3">
-          {/* Sales Tracker Button - Only show when NOT on Sales Tracker page */}
+          {/* Sales Tracker Button - SUSPENDED/HIDDEN */}
+          {/* 
           {location.pathname !== '/sales-tracker' && (
             <Button
               onClick={() => navigate('/sales-tracker')}
@@ -151,6 +152,7 @@ export const Layout = ({ children }) => {
               <span>Sales Tracker</span>
             </Button>
           )}
+          */}
 
           {/* Settings & Help for Admin */}
           {(isDealershipAdmin || isOwner) && (
