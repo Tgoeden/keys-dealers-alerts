@@ -1384,4 +1384,199 @@ const NotesModal = ({ open, onClose, keyData }) => {
   );
 };
 
+// PDI Status Modal with full details and audit history
+const PDIStatusModal = ({ open, onClose, keyData, onUpdate }) => {
+  const { user, isDealershipAdmin, isOwner } = useAuth();
+  const [status, setStatus] = useState('');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
+  const [loadingLog, setLoadingLog] = useState(false);
+
+  useEffect(() => {
+    if (keyData && open) {
+      setStatus(keyData.pdi_status || 'not_pdi_yet');
+      setNotes('');
+      fetchAuditLog();
+    }
+  }, [keyData, open]);
+
+  const fetchAuditLog = async () => {
+    if (!keyData) return;
+    setLoadingLog(true);
+    try {
+      const res = await keyApi.getPDIAuditLog(keyData.id);
+      setAuditLog(res.data);
+    } catch (err) {
+      console.error('Failed to fetch PDI audit log:', err);
+    } finally {
+      setLoadingLog(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!keyData) return;
+    
+    // Don't submit if status hasn't changed
+    if (status === keyData.pdi_status) {
+      onClose();
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await keyApi.updatePDIStatus(keyData.id, status, notes || null);
+      toast.success('PDI status updated');
+      onUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update PDI status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!keyData) return null;
+
+  const currentPdiInfo = getPDIStatusInfo(keyData.pdi_status || 'not_pdi_yet');
+  const canViewFullHistory = isDealershipAdmin || isOwner;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg" data-testid="pdi-modal">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5 text-cyan-400" />
+            PDI Status - #{keyData.stock_number}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Vehicle Info */}
+          <div className="p-4 bg-slate-800/50 rounded-xl">
+            <p className="font-medium text-white">
+              {keyData.vehicle_year} {keyData.vehicle_make} {keyData.vehicle_model}
+            </p>
+            {keyData.vehicle_vin && (
+              <p className="text-xs text-slate-500 font-mono mt-1">VIN: {keyData.vehicle_vin}</p>
+            )}
+          </div>
+
+          {/* Current Status */}
+          <div className="space-y-2">
+            <Label className="text-slate-300">Current Status</Label>
+            <div className="flex items-center gap-3">
+              <Badge className={`${currentPdiInfo.bgColor} ${currentPdiInfo.textColor} text-sm px-3 py-1`}>
+                <span className={`w-2 h-2 rounded-full ${currentPdiInfo.color} mr-2`} />
+                {currentPdiInfo.label}
+              </Badge>
+              {keyData.pdi_last_updated_at && (
+                <span className="text-xs text-slate-500">
+                  by {keyData.pdi_last_updated_by_user_name} at {format(new Date(keyData.pdi_last_updated_at), 'MMM d, yyyy h:mm a')}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Update Status Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-slate-300">Change Status</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {PDI_STATUSES.map((pdi) => (
+                  <button
+                    key={pdi.value}
+                    type="button"
+                    onClick={() => setStatus(pdi.value)}
+                    className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 ${
+                      status === pdi.value 
+                        ? `${pdi.bgColor} border-current ${pdi.textColor}` 
+                        : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20'
+                    }`}
+                    data-testid={`pdi-option-${pdi.value}`}
+                  >
+                    <span className={`w-4 h-4 rounded-full ${pdi.color}`} />
+                    <span className="text-xs font-medium text-center leading-tight">{pdi.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-300">Notes (optional)</Label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes about this PDI status change..."
+                rows={2}
+                className="bg-white/5 border-white/10 text-white"
+                data-testid="pdi-notes"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 btn-primary"
+                disabled={loading || status === keyData.pdi_status}
+                data-testid="pdi-submit"
+              >
+                {loading ? 'Updating...' : 'Update Status'}
+              </Button>
+            </div>
+          </form>
+
+          {/* Audit History */}
+          {canViewFullHistory && (
+            <div className="space-y-3 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-300 flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  PDI History
+                </Label>
+                {loadingLog && <span className="text-xs text-slate-500">Loading...</span>}
+              </div>
+              
+              {auditLog.length > 0 ? (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {auditLog.map((log) => {
+                    const prevInfo = getPDIStatusInfo(log.previous_status);
+                    const newInfo = getPDIStatusInfo(log.new_status);
+                    return (
+                      <div key={log.id} className="p-2 bg-white/5 rounded-lg text-xs">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded ${prevInfo.bgColor} ${prevInfo.textColor}`}>
+                            {prevInfo.label}
+                          </span>
+                          <span className="text-slate-500">→</span>
+                          <span className={`px-2 py-0.5 rounded ${newInfo.bgColor} ${newInfo.textColor}`}>
+                            {newInfo.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-slate-500">
+                          <span>{log.changed_by_user_name}</span>
+                          <span>•</span>
+                          <span>{format(new Date(log.changed_at), 'MMM d, yyyy h:mm a')}</span>
+                        </div>
+                        {log.notes && (
+                          <p className="mt-1 text-slate-400 italic">{log.notes}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 text-center py-2">No PDI history recorded yet</p>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default Keys;
