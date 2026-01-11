@@ -1529,8 +1529,8 @@ async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_cu
     with open(filepath, "wb") as f:
         f.write(content)
     
-    # Return URL (relative to backend)
-    return {"url": f"/uploads/{filename}"}
+    # Return URL (through /api/ for proper routing)
+    return {"url": f"/api/uploads/{filename}"}
 
 @api_router.post("/upload-image-base64")
 async def upload_image_base64(data: dict, user: dict = Depends(get_current_user)):
@@ -1569,8 +1569,8 @@ async def upload_image_base64(data: dict, user: dict = Depends(get_current_user)
     with open(filepath, "wb") as f:
         f.write(content)
     
-    # Return URL (relative to backend)
-    return {"url": f"/uploads/{filename}"}
+    # Return URL (through /api/ for proper routing)
+    return {"url": f"/api/uploads/{filename}"}
 
 @api_router.get("/keys/{key_id}/history")
 async def get_key_history(key_id: str, user: dict = Depends(get_current_user)):
