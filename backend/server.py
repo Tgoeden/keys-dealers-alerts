@@ -1247,7 +1247,12 @@ async def bulk_import_keys(data: KeyBulkImportRequest, user: dict = Depends(requ
     }
 
 @api_router.get("/keys", response_model=List[KeyResponse])
-async def get_keys(dealership_id: Optional[str] = None, status: Optional[str] = None, user: dict = Depends(get_current_user)):
+async def get_keys(
+    dealership_id: Optional[str] = None, 
+    status: Optional[str] = None, 
+    pdi_status: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
     query = {"is_active": True}
     
     if user["role"] == UserRole.OWNER:
@@ -1259,7 +1264,27 @@ async def get_keys(dealership_id: Optional[str] = None, status: Optional[str] = 
     if status:
         query["status"] = status
     
+    # PDI status filter
+    if pdi_status:
+        if pdi_status in VALID_PDI_STATUSES:
+            query["pdi_status"] = pdi_status
+        elif pdi_status == "not_set":
+            # Keys without PDI status set yet
+            query["$or"] = [{"pdi_status": {"$exists": False}}, {"pdi_status": None}]
+    
     keys = await db.keys.find(query, {"_id": 0}).to_list(1000)
+    
+    # Ensure all keys have PDI status fields (for backwards compatibility)
+    for k in keys:
+        if "pdi_status" not in k:
+            k["pdi_status"] = PDIStatus.NOT_PDI_YET
+        if "pdi_last_updated_at" not in k:
+            k["pdi_last_updated_at"] = None
+        if "pdi_last_updated_by_user_id" not in k:
+            k["pdi_last_updated_by_user_id"] = None
+        if "pdi_last_updated_by_user_name" not in k:
+            k["pdi_last_updated_by_user_name"] = None
+    
     return [KeyResponse(**k) for k in keys]
 
 @api_router.get("/keys/{key_id}", response_model=KeyResponse)
@@ -1267,6 +1292,17 @@ async def get_key(key_id: str, user: dict = Depends(get_current_user)):
     key = await db.keys.find_one({"id": key_id}, {"_id": 0})
     if not key:
         raise HTTPException(status_code=404, detail="Key not found")
+    
+    # Ensure PDI status fields exist (for backwards compatibility)
+    if "pdi_status" not in key:
+        key["pdi_status"] = PDIStatus.NOT_PDI_YET
+    if "pdi_last_updated_at" not in key:
+        key["pdi_last_updated_at"] = None
+    if "pdi_last_updated_by_user_id" not in key:
+        key["pdi_last_updated_by_user_id"] = None
+    if "pdi_last_updated_by_user_name" not in key:
+        key["pdi_last_updated_by_user_name"] = None
+    
     return KeyResponse(**key)
 
 @api_router.put("/keys/{key_id}", response_model=KeyResponse)
