@@ -40,9 +40,16 @@ if not OWNER_PIN:
 DEMO_MAX_KEYS = 4
 DEMO_MAX_USERS = 1
 
+# Create uploads directory for images
+UPLOAD_DIR = ROOT_DIR / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
 app = FastAPI(title="KeyFlow API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
+
+# Serve uploaded files statically
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
