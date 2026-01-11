@@ -7,7 +7,7 @@ import base64
 from datetime import datetime, timezone
 
 class KeyFlowAPITester:
-    def __init__(self, base_url="https://dealflow-keys.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://keyflow-mechanic.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.token = None
         self.owner_token = None
