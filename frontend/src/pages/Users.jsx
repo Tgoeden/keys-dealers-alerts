@@ -349,9 +349,13 @@ const AddUserModal = ({ open, onClose, onSubmit, dealerships, isOwner, defaultDe
   const [loading, setLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
 
+  // Update form when defaultDealershipId changes
+  const currentDealershipId = defaultDealershipId || '';
   useEffect(() => {
-    setForm((prev) => ({ ...prev, dealership_id: defaultDealershipId || '' }));
-  }, [defaultDealershipId]);
+    if (currentDealershipId !== form.dealership_id) {
+      setForm((prev) => ({ ...prev, dealership_id: currentDealershipId }));
+    }
+  }, [currentDealershipId, form.dealership_id]);
 
   // Fetch custom roles when dealership changes
   useEffect(() => {
@@ -380,7 +384,7 @@ const AddUserModal = ({ open, onClose, onSubmit, dealerships, isOwner, defaultDe
     setLoading(true);
     await onSubmit(form);
     setLoading(false);
-    setForm({ name: '', pin: '', role: 'sales', dealership_id: defaultDealershipId || '' });
+    setForm({ name: '', pin: '', role: 'sales', dealership_id: currentDealershipId });
   };
 
   const allRoles = [
@@ -408,7 +412,7 @@ const AddUserModal = ({ open, onClose, onSubmit, dealerships, isOwner, defaultDe
                 data-testid="add-user-name"
               />
             </div>
-            <p className="text-xs text-slate-500">This is how they'll sign in - name must be unique</p>
+            <p className="text-xs text-slate-500">This is how they&apos;ll sign in - name must be unique</p>
           </div>
 
           <div className="space-y-2">
