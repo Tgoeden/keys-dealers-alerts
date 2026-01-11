@@ -176,6 +176,8 @@ export const AuthProvider = ({ children }) => {
       loading,
       login,
       ownerLogin,
+      adminPinLogin,
+      userPinLogin,
       demoLogin,
       register,
       logout,
