@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Help from "./pages/Help";
 import Logs from "./pages/Logs";
 import ShareAccess from "./pages/ShareAccess";
+import Repairs from "./pages/Repairs";
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
