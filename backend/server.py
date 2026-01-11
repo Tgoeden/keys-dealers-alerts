@@ -236,8 +236,28 @@ class KeyResponse(BaseModel):
     notes_history: Optional[List[dict]] = []
     images: Optional[List[str]] = []  # Up to 3 image URLs
     attention_status: str = "none"  # none, needs_attention, fixed
+    # PDI Status fields
+    pdi_status: str = PDIStatus.NOT_PDI_YET
+    pdi_last_updated_at: Optional[str] = None
+    pdi_last_updated_by_user_id: Optional[str] = None
+    pdi_last_updated_by_user_name: Optional[str] = None
     is_active: bool = True
     created_at: str
+
+class PDIStatusUpdate(BaseModel):
+    status: str  # not_pdi_yet, in_progress, finished
+    notes: Optional[str] = None
+
+class PDIAuditLogResponse(BaseModel):
+    id: str
+    key_id: str
+    stock_number: str
+    changed_by_user_id: str
+    changed_by_user_name: str
+    changed_at: str
+    previous_status: str
+    new_status: str
+    notes: Optional[str] = None
 
 class KeyCheckoutRequest(BaseModel):
     reason: str
