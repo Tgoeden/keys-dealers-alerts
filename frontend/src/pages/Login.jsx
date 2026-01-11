@@ -449,7 +449,7 @@ const Login = () => {
               </label>
             </div>
             <p className="text-xs text-slate-500 -mt-2">
-              Without this, you'll need to re-login after 6 hours of inactivity
+              Without this, you&apos;ll need to re-login after 6 hours of inactivity
             </p>
 
             <Button
