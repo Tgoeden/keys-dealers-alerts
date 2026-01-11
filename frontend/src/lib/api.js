@@ -36,9 +36,14 @@ export const authApi = {
   login: (email, password, rememberMe = false) => api.post('/auth/login', { email, password, remember_me: rememberMe }),
   register: (data) => api.post('/auth/register', data),
   ownerLogin: (pin, rememberMe = false) => api.post('/auth/owner-login', { pin, remember_me: rememberMe }),
+  adminPinLogin: (dealershipId, pin, rememberMe = false) => api.post('/auth/admin-pin-login', { dealership_id: dealershipId, pin, remember_me: rememberMe }),
+  userPinLogin: (dealershipId, name, pin, rememberMe = false) => api.post('/auth/user-pin-login', { dealership_id: dealershipId, name, pin, remember_me: rememberMe }),
   demoLogin: () => api.post('/auth/demo-login'),
   getMe: () => api.get('/auth/me'),
   getDemoLimits: () => api.get('/demo-limits'),
+  changePin: (currentPin, newPin) => api.post('/auth/change-user-pin', null, { params: { current_pin: currentPin, new_pin: newPin } }),
+  changeAdminPin: (currentPin, newPin) => api.post('/auth/change-admin-pin', { current_pin: currentPin, new_pin: newPin }),
+  getPublicDealerships: () => api.get('/dealerships/public'),
 };
 
 // Dealerships
