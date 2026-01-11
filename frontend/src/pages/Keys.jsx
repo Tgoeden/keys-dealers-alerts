@@ -613,8 +613,59 @@ const CheckoutModal = ({ open, onClose, keyData, isRV, checkoutReasons, serviceB
     reason: '',
     notes: '',
     service_bay: '',
+    needs_attention: false,
   });
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    // Limit to 3 total images
+    const remainingSlots = 3 - images.length;
+    const filesToUpload = files.slice(0, remainingSlots);
+    
+    setUploading(true);
+    try {
+      const uploadedUrls = [];
+      for (const file of filesToUpload) {
+        // Convert to base64 and upload
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+        
+        const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/upload-image-base64`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('keyflow_token')}`
+          },
+          body: JSON.stringify({ image: base64 })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          uploadedUrls.push(`${process.env.REACT_APP_BACKEND_URL}${data.url}`);
+        }
+      }
+      setImages([...images, ...uploadedUrls]);
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      toast.error('Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (idx) => {
+    setImages(images.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -623,22 +674,25 @@ const CheckoutModal = ({ open, onClose, keyData, isRV, checkoutReasons, serviceB
       reason: form.reason,
       notes: form.notes || null,
       service_bay: form.service_bay ? parseInt(form.service_bay) : null,
+      needs_attention: form.needs_attention,
+      images: form.needs_attention ? images : [],
     });
     setLoading(false);
-    setForm({ reason: '', notes: '', service_bay: '' });
+    setForm({ reason: '', notes: '', service_bay: '', needs_attention: false });
+    setImages([]);
   };
 
   if (!keyData) return null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent data-testid="checkout-modal">
+      <DialogContent className="max-w-lg" data-testid="checkout-modal">
         <DialogHeader>
           <DialogTitle>Check Out Key</DialogTitle>
         </DialogHeader>
-        <div className="mb-4 p-4 bg-slate-50 rounded-xl">
-          <p className="font-mono font-semibold text-lg">#{keyData.stock_number}</p>
-          <p className="text-slate-600">{keyData.vehicle_model}</p>
+        <div className="mb-4 p-4 bg-slate-800/50 rounded-xl">
+          <p className="font-mono font-semibold text-lg text-white">#{keyData.stock_number}</p>
+          <p className="text-slate-400">{keyData.vehicle_year} {keyData.vehicle_make} {keyData.vehicle_model}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -676,14 +730,106 @@ const CheckoutModal = ({ open, onClose, keyData, isRV, checkoutReasons, serviceB
           )}
 
           <div className="space-y-2">
-            <Label>Notes (optional)</Label>
+            <Label>Notes {form.needs_attention ? '*' : '(optional)'}</Label>
             <Textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Add any additional notes..."
+              placeholder={form.needs_attention ? "Describe what needs attention..." : "Add any additional notes..."}
               rows={3}
               data-testid="checkout-notes"
             />
+          </div>
+
+          {/* Needs Attention Toggle */}
+          <div className={`p-4 rounded-xl border-2 transition-all ${
+            form.needs_attention 
+              ? 'bg-red-500/10 border-red-500/50' 
+              : 'bg-white/5 border-white/10 hover:border-white/20'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className={`w-5 h-5 ${form.needs_attention ? 'text-red-400' : 'text-slate-500'}`} />
+                <div>
+                  <p className={`font-medium ${form.needs_attention ? 'text-red-400' : 'text-white'}`}>
+                    Needs Attention
+                  </p>
+                  <p className="text-xs text-slate-500">Flag this unit for repair/service</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, needs_attention: !form.needs_attention })}
+                className={`w-14 h-8 rounded-full transition-all ${
+                  form.needs_attention ? 'bg-red-500' : 'bg-slate-600'
+                }`}
+                data-testid="needs-attention-toggle"
+              >
+                <div className={`w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                  form.needs_attention ? 'translate-x-7' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            {/* Image Upload - Only show when needs attention is checked */}
+            {form.needs_attention && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <Label className="text-sm text-slate-400 mb-2 block">
+                  Attach Photos (optional, up to 3)
+                </Label>
+                
+                {/* Image Preview */}
+                {images.length > 0 && (
+                  <div className="flex gap-2 mb-3">
+                    {images.map((img, idx) => (
+                      <div key={idx} className="relative group">
+                        <img 
+                          src={img} 
+                          alt={`Upload ${idx + 1}`}
+                          className="w-16 h-16 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {images.length < 3 && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="border-white/20 text-white hover:bg-white/10"
+                    >
+                      {uploading ? (
+                        <>Uploading...</>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Add Photo
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -692,11 +838,11 @@ const CheckoutModal = ({ open, onClose, keyData, isRV, checkoutReasons, serviceB
             </Button>
             <Button
               type="submit"
-              className="flex-1"
-              disabled={loading || !form.reason}
+              className={`flex-1 ${form.needs_attention ? 'bg-red-600 hover:bg-red-500' : ''}`}
+              disabled={loading || !form.reason || (form.needs_attention && !form.notes)}
               data-testid="checkout-submit"
             >
-              {loading ? 'Checking out...' : 'Check Out'}
+              {loading ? 'Checking out...' : form.needs_attention ? 'Check Out & Flag' : 'Check Out'}
             </Button>
           </div>
         </form>
