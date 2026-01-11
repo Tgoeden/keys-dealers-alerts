@@ -78,6 +78,14 @@ export const keyApi = {
   return: (id, data) => api.post(`/keys/${id}/return`, data),
   moveBay: (id, newBay) => api.post(`/keys/${id}/move-bay`, { new_bay: newBay }),
   getHistory: (id) => api.get(`/keys/${id}/history`),
+  markFixed: (id, data) => api.post(`/keys/${id}/mark-fixed`, data),
+  addImages: (id, images) => api.post(`/keys/${id}/add-images`, images),
+};
+
+// Repair Requests
+export const repairApi = {
+  getAll: (status) => api.get('/repair-requests', { params: status ? { status } : {} }),
+  delete: (id) => api.delete(`/repair-requests/${id}`),
 };
 
 // Checkout History
