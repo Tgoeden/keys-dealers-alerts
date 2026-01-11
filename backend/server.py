@@ -80,6 +80,14 @@ class AttentionStatus:
     NEEDS_ATTENTION = "needs_attention"
     FIXED = "fixed"
 
+class PDIStatus:
+    NOT_PDI_YET = "not_pdi_yet"
+    IN_PROGRESS = "in_progress"
+    FINISHED = "finished"
+
+# Valid PDI statuses for validation
+VALID_PDI_STATUSES = [PDIStatus.NOT_PDI_YET, PDIStatus.IN_PROGRESS, PDIStatus.FINISHED]
+
 # Auth Models
 class UserCreate(BaseModel):
     name: str
