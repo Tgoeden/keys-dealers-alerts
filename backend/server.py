@@ -1484,6 +1484,63 @@ async def move_to_bay(key_id: str, data: BayMoveRequest, user: dict = Depends(ge
 
 # ============ REPAIR REQUEST ENDPOINTS ============
 
+@api_router.post("/keys/{key_id}/flag-attention")
+async def flag_key_attention(key_id: str, notes: str, images: List[str] = [], user: dict = Depends(get_current_user)):
+    """Flag a key as needing attention without checking it out. Any user can do this."""
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    # Check dealership access for non-owners
+    if user["role"] != UserRole.OWNER and key.get("dealership_id") != user.get("dealership_id"):
+        raise HTTPException(status_code=403, detail="Cannot flag keys in other dealerships")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Update key attention status
+    update_data = {
+        "attention_status": AttentionStatus.NEEDS_ATTENTION,
+        "images": images[:3] if images else key.get("images", [])  # Keep existing or use new, max 3
+    }
+    
+    await db.keys.update_one({"id": key_id}, {"$set": update_data})
+    
+    # Create repair request record
+    repair_request = {
+        "id": str(uuid.uuid4()),
+        "key_id": key_id,
+        "stock_number": key["stock_number"],
+        "vehicle_info": f"{key.get('vehicle_year', '')} {key.get('vehicle_make', '')} {key.get('vehicle_model', '')}".strip(),
+        "dealership_id": key["dealership_id"],
+        "reported_by_id": user["id"],
+        "reported_by_name": user["name"],
+        "notes": notes,
+        "images": images[:3] if images else [],
+        "status": "pending",
+        "reported_at": now.isoformat(),
+        "fixed_by_id": None,
+        "fixed_by_name": None,
+        "fixed_at": None
+    }
+    await db.repair_requests.insert_one(repair_request)
+    
+    # Add to notes history
+    note_entry = {
+        "type": "attention_flagged",
+        "notes": notes,
+        "user_id": user["id"],
+        "user_name": user["name"],
+        "timestamp": now.isoformat(),
+        "images": images[:3] if images else []
+    }
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$push": {"notes_history": note_entry}}
+    )
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
 @api_router.post("/keys/{key_id}/mark-fixed", response_model=KeyResponse)
 async def mark_key_fixed(key_id: str, data: KeyMarkFixedRequest, user: dict = Depends(get_current_user)):
     """Mark a key as fixed (any user can do this)"""
