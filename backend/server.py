@@ -1026,20 +1026,40 @@ async def create_user(data: UserCreate, user: dict = Depends(require_role(UserRo
         if user_count >= DEMO_MAX_USERS:
             raise HTTPException(status_code=403, detail=f"Demo account limited to {DEMO_MAX_USERS} additional user. Upgrade to add more!")
     
-    existing = await db.users.find_one({"email": data.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Validate PIN
+    if not data.pin or not data.pin.isdigit() or len(data.pin) < 4 or len(data.pin) > 6:
+        raise HTTPException(status_code=400, detail="PIN must be 4-6 digits")
+    
+    # Check for duplicate name in the same dealership
+    existing_name = await db.users.find_one({
+        "dealership_id": data.dealership_id,
+        "name": {"$regex": f"^{data.name}$", "$options": "i"}
+    })
+    if existing_name:
+        raise HTTPException(status_code=400, detail="A user with this name already exists in this dealership")
+    
+    # Check for duplicate email if provided
+    if data.email:
+        existing_email = await db.users.find_one({"email": data.email})
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
     
     user_id = str(uuid.uuid4())
     user_doc = {
         "id": user_id,
-        "email": data.email,
-        "password": hash_password(data.password),
         "name": data.name,
+        "pin": hash_password(data.pin),  # Store hashed PIN
         "role": data.role,
         "dealership_id": data.dealership_id,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
+    
+    # Add optional fields if provided
+    if data.email:
+        user_doc["email"] = data.email
+    if data.password:
+        user_doc["password"] = hash_password(data.password)
+    
     await db.users.insert_one(user_doc)
     
     return UserResponse(
