@@ -355,6 +355,10 @@ const Keys = () => {
                   setShowPDIModal(true);
                 }}
                 onPDIUpdate={fetchKeys}
+                onFlagAttention={() => {
+                  setSelectedKey(key);
+                  setShowFlagAttentionModal(true);
+                }}
               />
             ))}
           </div>
