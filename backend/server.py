@@ -1205,6 +1205,105 @@ async def move_to_bay(key_id: str, data: BayMoveRequest, user: dict = Depends(ge
     key = await db.keys.find_one({"id": key_id}, {"_id": 0})
     return KeyResponse(**key)
 
+# ============ REPAIR REQUEST ENDPOINTS ============
+
+@api_router.post("/keys/{key_id}/mark-fixed", response_model=KeyResponse)
+async def mark_key_fixed(key_id: str, data: KeyMarkFixedRequest, user: dict = Depends(get_current_user)):
+    """Mark a key as fixed (any user can do this)"""
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    if key.get("attention_status") != AttentionStatus.NEEDS_ATTENTION:
+        raise HTTPException(status_code=400, detail="Key is not marked as needing attention")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Update key status
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$set": {"attention_status": AttentionStatus.FIXED}}
+    )
+    
+    # Update repair request
+    await db.repair_requests.update_one(
+        {"key_id": key_id, "status": "pending"},
+        {"$set": {
+            "status": "fixed",
+            "fixed_by_id": user["id"],
+            "fixed_by_name": user["name"],
+            "fixed_at": now.isoformat(),
+            "fix_notes": data.notes
+        }}
+    )
+    
+    # Log the fix action
+    notes_history = key.get("notes_history", [])
+    notes_history.insert(0, {
+        "note": data.notes or "Marked as fixed",
+        "user_name": user["name"],
+        "action": "marked_fixed",
+        "timestamp": now.isoformat()
+    })
+    await db.keys.update_one({"id": key_id}, {"$set": {"notes_history": notes_history}})
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
+@api_router.get("/repair-requests", response_model=List[RepairRequestResponse])
+async def get_repair_requests(status: Optional[str] = None, user: dict = Depends(get_current_user)):
+    """Get all repair requests for the dealership"""
+    query = {}
+    
+    if user["role"] == UserRole.OWNER:
+        pass  # Owner sees all
+    else:
+        query["dealership_id"] = user["dealership_id"]
+    
+    if status:
+        query["status"] = status
+    
+    requests = await db.repair_requests.find(query, {"_id": 0}).sort("reported_at", -1).to_list(500)
+    return [RepairRequestResponse(**r) for r in requests]
+
+@api_router.delete("/repair-requests/{request_id}")
+async def clear_repair_request(request_id: str, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Clear/delete a repair request (admin only)"""
+    request = await db.repair_requests.find_one({"id": request_id}, {"_id": 0})
+    if not request:
+        raise HTTPException(status_code=404, detail="Repair request not found")
+    
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and request["dealership_id"] != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot delete repair requests from other dealerships")
+    
+    # Reset key attention status to none
+    await db.keys.update_one(
+        {"id": request["key_id"]},
+        {"$set": {"attention_status": AttentionStatus.NONE, "images": []}}
+    )
+    
+    await db.repair_requests.delete_one({"id": request_id})
+    return {"message": "Repair request cleared"}
+
+@api_router.post("/keys/{key_id}/add-images", response_model=KeyResponse)
+async def add_key_images(key_id: str, images: List[str], user: dict = Depends(get_current_user)):
+    """Add images to a key (up to 3 total)"""
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    existing_images = key.get("images", [])
+    all_images = existing_images + images
+    
+    # Limit to 3 images
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$set": {"images": all_images[:3]}}
+    )
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
 @api_router.get("/keys/{key_id}/history")
 async def get_key_history(key_id: str, user: dict = Depends(get_current_user)):
     history = await db.key_history.find({"key_id": key_id}, {"_id": 0}).sort("checked_out_at", -1).to_list(100)
