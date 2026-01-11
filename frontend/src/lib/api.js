@@ -97,6 +97,7 @@ export const keyApi = {
   getHistory: (id) => api.get(`/keys/${id}/history`),
   markFixed: (id, data) => api.post(`/keys/${id}/mark-fixed`, data),
   addImages: (id, images) => api.post(`/keys/${id}/add-images`, images),
+  flagAttention: (id, notes, images) => api.post(`/keys/${id}/flag-attention`, null, { params: { notes, images } }),
   // PDI Status
   updatePDIStatus: (id, status, notes) => api.put(`/keys/${id}/pdi-status`, { status, notes }),
   getPDIAuditLog: (id) => api.get(`/keys/${id}/pdi-audit-log`),
