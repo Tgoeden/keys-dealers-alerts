@@ -199,6 +199,8 @@ class KeyResponse(BaseModel):
     status: str
     current_checkout: Optional[dict] = None
     notes_history: Optional[List[dict]] = []
+    images: Optional[List[str]] = []  # Up to 3 image URLs
+    attention_status: str = "none"  # none, needs_attention, fixed
     is_active: bool = True
     created_at: str
 
@@ -206,13 +208,49 @@ class KeyCheckoutRequest(BaseModel):
     reason: str
     notes: Optional[str] = None
     service_bay: Optional[int] = None  # For RV service
+    needs_attention: bool = False  # Flag if unit needs attention
+    images: Optional[List[str]] = []  # Up to 3 image URLs
 
 class KeyReturnRequest(BaseModel):
     notes: Optional[str] = None
     new_bay: Optional[int] = None  # For RV - move to new bay before return
 
+class KeyMarkFixedRequest(BaseModel):
+    notes: Optional[str] = None
+
 class BayMoveRequest(BaseModel):
     new_bay: int
+
+# Repair Request Models
+class RepairRequestCreate(BaseModel):
+    key_id: str
+    notes: str
+    images: Optional[List[str]] = []  # Up to 3 image URLs
+
+class RepairRequestResponse(BaseModel):
+    id: str
+    key_id: str
+    stock_number: str
+    vehicle_info: str
+    dealership_id: str
+    reported_by_id: str
+    reported_by_name: str
+    notes: str
+    images: List[str] = []
+    status: str  # pending, fixed
+    reported_at: str
+    fixed_by_id: Optional[str] = None
+    fixed_by_name: Optional[str] = None
+    fixed_at: Optional[str] = None
+
+# Admin PIN Change
+class AdminPinChange(BaseModel):
+    current_pin: str
+    new_pin: str
+
+# Custom Role Management
+class CustomRoleCreate(BaseModel):
+    name: str
 
 # Time Alert Models
 class TimeAlertCreate(BaseModel):
