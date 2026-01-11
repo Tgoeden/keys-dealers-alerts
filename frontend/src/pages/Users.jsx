@@ -174,16 +174,16 @@ const Users = () => {
 
   return (
     <Layout>
-      <div className="p-6 lg:p-10 space-y-6" data-testid="users-page">
+      <div className="space-y-6" data-testid="users-page">
         {/* Demo Limits Banner */}
         {isDemo && demoLimits && (
-          <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
+          <div className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-amber-800">
+              <p className="text-sm font-medium text-amber-300">
                 Demo Mode: {demoLimits.current_users} / {demoLimits.max_users} additional users
               </p>
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-amber-400/70">
                 Upgrade to add unlimited team members
               </p>
             </div>
@@ -193,16 +193,17 @@ const Users = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight">
+            <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
               User Management
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-400 mt-1">
               Manage dealership staff and access
             </p>
           </div>
           <Button 
             onClick={() => setShowAddModal(true)} 
             disabled={!canAddUsers}
+            className="btn-primary"
             data-testid="add-user-btn"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -215,10 +216,10 @@ const Users = () => {
         <div className="flex flex-col sm:flex-row gap-4">
           {isOwner && (
             <Select value={selectedDealership} onValueChange={setSelectedDealership}>
-              <SelectTrigger className="w-full sm:w-64" data-testid="dealership-filter">
+              <SelectTrigger className="w-full sm:w-64 bg-[#111113] border-[#1f1f23] text-white" data-testid="dealership-filter">
                 <SelectValue placeholder="All Dealerships" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-[#111113] border-[#1f1f23]">
                 <SelectItem value="">All Dealerships</SelectItem>
                 {dealerships.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
@@ -230,12 +231,12 @@ const Users = () => {
           )}
 
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
               placeholder="Search users..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-9 bg-[#111113] border-[#1f1f23] text-white"
               data-testid="user-search"
             />
           </div>
@@ -245,13 +246,13 @@ const Users = () => {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />
+              <div key={i} className="h-20 bg-white/5 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="text-center py-16">
-            <UsersIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">No users found</h3>
+            <UsersIcon className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white">No users found</h3>
             <p className="text-slate-500 mt-1">
               {search ? 'Try a different search term' : 'Add your first user to get started'}
             </p>
@@ -259,34 +260,36 @@ const Users = () => {
         ) : (
           <div className="space-y-3">
             {filteredUsers.map((u) => (
-              <Card key={u.id} className="card-hover" data-testid={`user-card-${u.email}`}>
+              <Card key={u.id} className="bg-[#111113] border-[#1f1f23]" data-testid={`user-card-${u.name}`}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center">
-                        <span className="text-lg font-semibold text-slate-600">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                        <span className="text-lg font-semibold text-white">
                           {u.name?.charAt(0)?.toUpperCase() || 'U'}
                         </span>
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900">{u.name}</p>
-                        <div className="flex items-center gap-2 text-sm text-slate-500">
-                          <Mail className="w-3 h-3" />
-                          {u.email}
-                        </div>
+                        <p className="font-semibold text-white">{u.name}</p>
+                        {u.email && (
+                          <div className="flex items-center gap-2 text-sm text-slate-500">
+                            <Mail className="w-3 h-3" />
+                            {u.email}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <Badge className={getRoleBadgeStyle(u.role)}>
-                        {u.role?.replace('_', ' ')}
+                        {formatRoleName(u.role)}
                       </Badge>
                       {u.id !== user?.id && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-slate-400 hover:text-red-600"
+                          className="text-slate-400 hover:text-red-400 hover:bg-red-500/10"
                           onClick={() => setDeleteUser(u)}
-                          data-testid={`delete-user-${u.email}`}
+                          data-testid={`delete-user-${u.name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -312,15 +315,15 @@ const Users = () => {
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteUser} onOpenChange={() => setDeleteUser(null)}>
-        <AlertDialogContent data-testid="delete-user-dialog">
+        <AlertDialogContent className="bg-[#111113] border-[#1f1f23]" data-testid="delete-user-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete User</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-white">Delete User</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
               Are you sure you want to delete {deleteUser?.name}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="border-white/20 text-white hover:bg-white/10">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"
               onClick={handleDeleteUser}
