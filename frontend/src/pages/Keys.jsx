@@ -350,6 +350,11 @@ const Keys = () => {
                   setSelectedKey(key);
                   setShowNotesModal(true);
                 }}
+                onPDIClick={() => {
+                  setSelectedKey(key);
+                  setShowPDIModal(true);
+                }}
+                onPDIUpdate={fetchKeys}
               />
             ))}
           </div>
@@ -383,6 +388,21 @@ const Keys = () => {
           setSelectedKey(null);
         }}
         keyData={selectedKey}
+      />
+
+      {/* PDI Status Modal */}
+      <PDIStatusModal
+        open={showPDIModal}
+        onClose={() => {
+          setShowPDIModal(false);
+          setSelectedKey(null);
+        }}
+        keyData={selectedKey}
+        onUpdate={() => {
+          fetchKeys();
+          setShowPDIModal(false);
+          setSelectedKey(null);
+        }}
       />
 
       {/* Checkout Modal */}
