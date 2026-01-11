@@ -116,8 +116,12 @@ export const Layout = ({ children }) => {
                 cn(
                   'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
                   isActive
-                    ? 'bg-cyan-500/20 text-cyan-400'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    ? item.highlight 
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-cyan-500/20 text-cyan-400'
+                    : item.highlight
+                      ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                 )
               }
               data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
