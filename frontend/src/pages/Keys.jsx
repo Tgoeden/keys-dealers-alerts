@@ -410,6 +410,21 @@ const Keys = () => {
         }}
       />
 
+      {/* Flag Attention Modal (without checkout) */}
+      <FlagAttentionModal
+        open={showFlagAttentionModal}
+        onClose={() => {
+          setShowFlagAttentionModal(false);
+          setSelectedKey(null);
+        }}
+        keyData={selectedKey}
+        onSuccess={() => {
+          fetchKeys();
+          setShowFlagAttentionModal(false);
+          setSelectedKey(null);
+        }}
+      />
+
       {/* Checkout Modal */}
       <CheckoutModal
         open={showCheckoutModal}
