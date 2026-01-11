@@ -72,6 +72,7 @@ const Keys = () => {
   const [dealerships, setDealerships] = useState([]);
   const [selectedDealership, setSelectedDealership] = useState('');
   const [filter, setFilter] = useState('all');
+  const [pdiFilter, setPdiFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -79,6 +80,7 @@ const Keys = () => {
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showPDIModal, setShowPDIModal] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
   const [demoLimits, setDemoLimits] = useState(null);
 
@@ -93,7 +95,7 @@ const Keys = () => {
     if (selectedDealership || !isOwner) {
       fetchKeys();
     }
-  }, [selectedDealership, filter]);
+  }, [selectedDealership, filter, pdiFilter]);
 
   const fetchDemoLimits = async () => {
     try {
@@ -122,6 +124,7 @@ const Keys = () => {
       const params = {};
       if (selectedDealership) params.dealership_id = selectedDealership;
       if (filter !== 'all') params.status = filter;
+      if (pdiFilter !== 'all') params.pdi_status = pdiFilter;
       
       const res = await keyApi.getAll(params);
       setKeys(res.data);
