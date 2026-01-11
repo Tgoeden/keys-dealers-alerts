@@ -540,17 +540,15 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick,
           <Badge className={`text-xs px-1.5 py-0.5 ${isNew ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
             {isNew ? 'New' : 'Used'}
           </Badge>
-            {isNew ? 'New' : 'Used'}
-          </Badge>
           <Badge
-            className={isCheckedOut ? 'status-checked-out' : 'status-available'}
+            className={`text-xs px-1.5 py-0.5 ${isCheckedOut ? 'status-checked-out' : 'status-available'}`}
           >
-            {isCheckedOut ? 'Out' : 'Available'}
+            {isCheckedOut ? 'Out' : 'In'}
           </Badge>
         </div>
       </div>
 
-      <p className="text-slate-200 font-medium">
+      <p className="text-slate-200 font-medium text-sm">
         {keyData.vehicle_year} {keyData.vehicle_make} {keyData.vehicle_model}
       </p>
       {keyData.vehicle_vin && (
@@ -558,13 +556,13 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick,
       )}
 
       {isCheckedOut && checkout && (
-        <div className="mt-4 pt-4 border-t border-white/10">
+        <div className="mt-3 pt-3 border-t border-white/10">
           <div className="flex items-center gap-2 text-sm text-slate-300">
             <User className="w-4 h-4" />
             <span>{checkout.user_name}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-            <Clock className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+            <Clock className="w-3 h-3" />
             <span>
               {formatDistanceToNow(new Date(checkout.checked_out_at), {
                 addSuffix: true,
@@ -582,7 +580,7 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick,
       {hasNotes && (
         <button
           onClick={onViewNotes}
-          className="mt-3 flex items-center gap-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+          className="mt-2 flex items-center gap-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
           data-testid={`view-notes-${keyData.stock_number}`}
         >
           <MessageSquare className="w-3.5 h-3.5" />
@@ -604,7 +602,22 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick,
         </div>
       )}
 
-      <div className="mt-4">
+      {/* Action Buttons */}
+      <div className="mt-4 space-y-2">
+        {/* Flag Attention Button - always visible if not already flagged */}
+        {!needsAttention && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+            onClick={onFlagAttention}
+            data-testid={`flag-attention-${keyData.stock_number}`}
+          >
+            <AlertTriangle className="w-4 h-4 mr-2" />
+            Flag Needs Attention
+          </Button>
+        )}
+        
         {isCheckedOut ? (
           <Button
             variant="outline"
