@@ -18,6 +18,8 @@ import {
   FileText,
   MessageSquare,
   Download,
+  ClipboardCheck,
+  History,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -39,6 +41,13 @@ import {
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
 import { formatDistanceToNow, format } from 'date-fns';
+
+// PDI Status options
+const PDI_STATUSES = [
+  { value: 'not_pdi_yet', label: 'Not PDI Yet', color: 'bg-red-500', textColor: 'text-red-400', bgColor: 'bg-red-500/20' },
+  { value: 'in_progress', label: 'PDI In Progress', color: 'bg-yellow-500', textColor: 'text-yellow-400', bgColor: 'bg-yellow-500/20' },
+  { value: 'finished', label: 'PDI Finished', color: 'bg-emerald-500', textColor: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
+];
 
 // Checkout reasons for AUTOMOTIVE dealerships
 const AUTO_CHECKOUT_REASONS = [
