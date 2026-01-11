@@ -433,7 +433,12 @@ const Keys = () => {
   );
 };
 
-const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes }) => {
+// Helper to get PDI status info
+const getPDIStatusInfo = (status) => {
+  return PDI_STATUSES.find(s => s.value === status) || PDI_STATUSES[0];
+};
+
+const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick, onPDIUpdate }) => {
   const isCheckedOut = keyData.status === 'checked_out';
   const checkout = keyData.current_checkout;
   const isNew = keyData.condition === 'new';
@@ -441,6 +446,31 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes }) => {
                    (checkout && checkout.notes);
   const needsAttention = keyData.attention_status === 'needs_attention';
   const isFixed = keyData.attention_status === 'fixed';
+  
+  // PDI Status
+  const pdiStatus = keyData.pdi_status || 'not_pdi_yet';
+  const pdiInfo = getPDIStatusInfo(pdiStatus);
+  const [showPDIDropdown, setShowPDIDropdown] = useState(false);
+  const [updatingPDI, setUpdatingPDI] = useState(false);
+
+  const handleQuickPDIUpdate = async (newStatus) => {
+    if (newStatus === pdiStatus) {
+      setShowPDIDropdown(false);
+      return;
+    }
+    
+    setUpdatingPDI(true);
+    try {
+      await keyApi.updatePDIStatus(keyData.id, newStatus, null);
+      toast.success('PDI status updated');
+      onPDIUpdate && onPDIUpdate();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to update PDI status');
+    } finally {
+      setUpdatingPDI(false);
+      setShowPDIDropdown(false);
+    }
+  };
 
   return (
     <div
