@@ -10,13 +10,15 @@ import {
   ChevronUp,
   AlertTriangle,
   Settings,
-  TrendingUp,
   Upload,
   MessageSquare,
   Shield,
   LogIn,
   FileText,
   Search,
+  Camera,
+  CheckCircle,
+  Wrench,
 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -30,20 +32,20 @@ const FAQ_SECTIONS = [
     bgColor: 'bg-cyan-500/10',
     faqs: [
       {
-        q: 'How do I log in to KeyFlow?',
-        a: 'Go to the login page and enter your email and password provided by your dealership admin. Check "Keep me signed in" to stay logged in for 7 days. Without this option, you\'ll be logged out after 5 hours of inactivity.',
+        q: 'How do I log in as an Admin?',
+        a: 'Select "Admin Login" on the login page, choose your dealership from the dropdown, and enter your 4-6 digit PIN. Check "Keep me signed in" to stay logged in.',
+      },
+      {
+        q: 'How do I log in as a Staff member?',
+        a: 'Select "Staff Login" on the login page, choose your dealership, enter your name exactly as your admin registered it, and enter your PIN. Without "Keep me signed in" checked, you\'ll be logged out after 6 hours of inactivity.',
       },
       {
         q: 'What is Demo Mode?',
         a: 'Demo Mode lets you explore KeyFlow without creating an account. It\'s limited to 4 keys and 1 user. Click "Try Demo" on the login page to start. Demo data resets when you log out.',
       },
       {
-        q: 'How do I access Owner mode?',
-        a: 'Tap the KeyFlow logo 5 times quickly on the login page. This will open a PIN entry modal. Enter the owner PIN (provided separately) to access owner-level features like creating dealerships.',
-      },
-      {
-        q: 'I forgot my password. What do I do?',
-        a: 'Contact your dealership administrator. They can create a new account for you or reset your credentials. Owners can also manage user accounts.',
+        q: 'I forgot my PIN. What do I do?',
+        a: 'Contact your dealership administrator. They can create a new account for you with a new PIN, or reset your credentials.',
       },
     ],
   },
@@ -81,31 +83,39 @@ const FAQ_SECTIONS = [
     ],
   },
   {
-    id: 'sales-tracker',
-    title: 'Sales Tracker',
-    icon: TrendingUp,
-    color: 'text-emerald-400',
-    bgColor: 'bg-emerald-500/10',
+    id: 'needs-attention',
+    title: 'Needs Attention / Repairs',
+    icon: Wrench,
+    color: 'text-red-400',
+    bgColor: 'bg-red-500/10',
     faqs: [
       {
-        q: 'How do I set my sales goal?',
-        a: 'Go to Sales Tracker (green button in navigation). Click "Set Goal" and enter your yearly sales target. The system will calculate your required weekly and monthly pace automatically.',
+        q: 'What is the "Needs Attention" feature?',
+        a: 'When checking out a key, any user can flag a unit as "Needs Attention" if they notice something wrong - mechanical issues, damage, low fuel, etc. This creates a repair request that everyone can see on the Needs Attention dashboard.',
       },
       {
-        q: 'How do I log daily activities?',
-        a: 'In Sales Tracker, click "Log Activity". Enter your daily numbers: leads (walk-in, phone, internet), write-ups, sales, and appointments. Mark whether you worked that day. Your progress updates automatically.',
+        q: 'How do I flag a unit as needing attention?',
+        a: 'During key checkout, toggle ON the red "Needs Attention" switch. You\'ll be required to add notes explaining the issue. You can also attach up to 3 photos showing the problem.',
       },
       {
-        q: 'What does "Goal Achievement Probability" mean?',
-        a: 'This percentage shows how likely you are to hit your yearly goal based on your current pace. It adjusts as you log activities. Above 80% is great, 50-80% means you need to pick up the pace.',
+        q: 'How do I add photos when flagging an issue?',
+        a: 'After turning on "Needs Attention", click "Add Photo" to upload images from your phone or computer. You can add up to 3 photos per flagged issue. Photos help the service team understand and locate the problem quickly.',
       },
       {
-        q: 'Can my manager see my sales tracker?',
-        a: 'Yes, dealership admins can view the sales progress of all team members in their dealership. This helps with coaching and tracking team performance.',
+        q: 'Who can see the photos I upload?',
+        a: 'Everyone in your dealership can view photos attached to repair requests. This helps service techs, porters, and managers quickly understand issues without needing verbal explanations.',
       },
       {
-        q: 'How do I get back to Key Management from Sales Tracker?',
-        a: 'Click the "Back to KeyFlow" button in the top navigation (where the green Sales Tracker button normally appears). This takes you back to the Key Management page.',
+        q: 'How do I mark a unit as fixed?',
+        a: 'Any user can mark a flagged unit as "Fixed" by clicking the "Mark Fixed" button on the Needs Attention page. This changes the status from red (Needs Attention) to green (Fixed).',
+      },
+      {
+        q: 'Who can clear items from the Needs Attention list?',
+        a: 'Only Admins can permanently clear (delete) items from the Needs Attention dashboard. This ensures there\'s an audit trail of all issues, even after they\'re resolved.',
+      },
+      {
+        q: 'What\'s the difference between "Fixed" and "Cleared"?',
+        a: '"Fixed" means the issue has been resolved - anyone can mark this. "Cleared" means the record is removed from the dashboard - only admins can do this. Fixed items stay visible until an admin clears them.',
       },
     ],
   },
@@ -118,33 +128,37 @@ const FAQ_SECTIONS = [
     faqs: [
       {
         q: 'How do I add a new user to my dealership?',
-        a: 'There are two ways: 1) Go to User Management and click "Add User" to create an account directly. 2) Go to Share Access and create an invite link - send it to your team member and they can register themselves.',
+        a: 'Go to User Management and click "Add User". Enter their name (this is how they\'ll sign in - must be unique), create a 4-6 digit PIN for them, and select their role (Sales, Service, Delivery, Porter, Lot Tech, or custom).',
       },
       {
-        q: 'What\'s the difference between Admin and Staff roles?',
-        a: 'Admins can manage keys, users, settings, and view team sales progress. Staff members can check keys in/out and use the Sales Tracker for their own goals. Only Admins can create invite links for other staff.',
+        q: 'What are the different user roles?',
+        a: 'Standard roles include Sales, Service, Delivery, Porter, and Lot Tech. All staff roles have the same permissions - they can check keys in/out, flag issues, and mark items as fixed. Admins can additionally manage users, settings, and clear repair logs.',
+      },
+      {
+        q: 'Can I create custom roles?',
+        a: 'Yes! Go to Settings > User Roles. Enter a new role name and click "Add Role". Custom roles work the same as standard roles but help you organize staff by department or function.',
       },
       {
         q: 'How do invite links work?',
-        a: 'Go to Share Access and click "Create Invite Link". Choose Admin or Staff role. Copy the link and send it to your team member. They\'ll register with their own email/password and automatically join your dealership.',
+        a: 'Go to Share Access and click "Create Invite Link". Choose Admin or Staff role. Copy the link and send it to your team member. They\'ll register with their own credentials and automatically join your dealership.',
       },
       {
         q: 'Can I delete a user?',
-        a: 'Yes, go to User Management, find the user, and click the delete button. This removes their access but preserves their historical data (key checkouts, sales activities).',
-      },
-      {
-        q: 'How long do invite links last?',
-        a: 'Invite links expire after 7 days. If a link expires, simply create a new one. Used links cannot be reused - each person needs their own invite.',
+        a: 'Yes, go to User Management, find the user, and click the delete button. This removes their access but preserves their historical data (key checkouts, repair flags).',
       },
     ],
   },
   {
     id: 'settings',
-    title: 'Settings & Customization',
+    title: 'Settings & Security',
     icon: Settings,
     color: 'text-pink-400',
     bgColor: 'bg-pink-500/10',
     faqs: [
+      {
+        q: 'How do I change my PIN?',
+        a: 'Go to Settings > PIN Security and click "Change PIN". Enter your current PIN, then your new 4-6 digit PIN twice to confirm. Your new PIN takes effect immediately.',
+      },
       {
         q: 'How do I add my dealership logo?',
         a: 'Go to Settings and find the Branding section. Enter the URL of your logo image (it must be publicly accessible). The logo will appear in the app once you save.',
@@ -156,10 +170,6 @@ const FAQ_SECTIONS = [
       {
         q: 'What is the Key Alert Threshold?',
         a: 'This setting determines when a key is flagged as "overdue". The default is 30 minutes. Adjust based on your needs - longer for extended test drives, shorter for quick demos.',
-      },
-      {
-        q: 'Are settings shared across all users?',
-        a: 'Branding settings (logo, colors) apply to everyone in your dealership. Alert thresholds are set at the dealership level. Individual users set their own sales goals.',
       },
     ],
   },
@@ -180,7 +190,7 @@ const FAQ_SECTIONS = [
       },
       {
         q: 'Who can access the logs?',
-        a: 'Dealership Admins and Owners can view all logs for their dealership. Staff members can only see their own checkout history.',
+        a: 'Dealership Admins can view all logs for their dealership. Staff members can see activity on the Keys page but have limited access to full reports.',
       },
     ],
   },
@@ -188,24 +198,24 @@ const FAQ_SECTIONS = [
     id: 'troubleshooting',
     title: 'Troubleshooting',
     icon: AlertTriangle,
-    color: 'text-red-400',
-    bgColor: 'bg-red-500/10',
+    color: 'text-orange-400',
+    bgColor: 'bg-orange-500/10',
     faqs: [
       {
         q: 'I can\'t log in. What should I do?',
-        a: 'Double-check your email and password. Make sure caps lock is off. If you\'re still having trouble, contact your dealership admin to verify your account exists and reset your password if needed.',
+        a: 'Make sure you\'re selecting the correct dealership and entering your name exactly as registered. PINs are 4-6 digits only. If you\'re still having trouble, contact your dealership admin to verify your account exists.',
       },
       {
         q: 'The app logged me out unexpectedly.',
-        a: 'If you didn\'t check "Keep me signed in", the app logs you out after 5 hours of inactivity for security. Simply log back in. Check the box next time for longer sessions.',
+        a: 'If you didn\'t check "Keep me signed in", the app logs you out after 6 hours of inactivity for security. Simply log back in. Check the box next time for longer sessions.',
       },
       {
         q: 'I can\'t see certain features or buttons.',
         a: 'Some features are role-specific. Staff members don\'t see User Management or Settings. If you need admin access, ask your dealership admin to upgrade your role.',
       },
       {
-        q: 'Changes I made aren\'t showing up.',
-        a: 'Try refreshing the page. If the issue persists, log out and log back in. Changes are saved automatically, so your data should be preserved.',
+        q: 'Photos I uploaded aren\'t showing.',
+        a: 'Make sure your phone has a stable internet connection when uploading. Large photos may take a moment to upload. If photos still don\'t appear, try refreshing the page or logging out and back in.',
       },
       {
         q: 'The CSV import failed. Why?',
@@ -272,15 +282,15 @@ const Help = () => {
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-cyan-400" />
+                <CheckCircle className="w-5 h-5 text-cyan-400" />
               </div>
               <div>
                 <h3 className="font-semibold text-white mb-2">Quick Tips</h3>
                 <ul className="text-sm text-slate-300 space-y-1">
-                  <li>• Tap the KeyFlow logo <strong>5 times</strong> for owner access</li>
-                  <li>• Check <strong>"Keep me signed in"</strong> to stay logged in for 7 days</li>
+                  <li>• Check <strong>"Keep me signed in"</strong> to stay logged in longer</li>
                   <li>• Use <strong>CSV Import</strong> to add multiple keys at once</li>
                   <li>• Click <strong>"View Notes"</strong> on any key to see its history</li>
+                  <li>• <strong>Flag issues</strong> during checkout with photos to help service</li>
                   <li>• <strong>Invite links</strong> are the easiest way to add new team members</li>
                 </ul>
               </div>
