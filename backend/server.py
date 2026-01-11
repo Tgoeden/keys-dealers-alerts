@@ -561,7 +561,7 @@ async def get_demo_limits(user: dict = Depends(get_current_user)):
 
 @api_router.post("/dealerships", response_model=DealershipResponse)
 async def create_dealership(data: DealershipCreate, user: dict = Depends(require_role(UserRole.OWNER))):
-    """Only owners can create dealerships. Optionally creates admin account."""
+    """Only owners can create dealerships. Optionally creates admin account with PIN."""
     dealership_id = str(uuid.uuid4())
     doc = {
         "id": dealership_id,
@@ -571,6 +571,7 @@ async def create_dealership(data: DealershipCreate, user: dict = Depends(require
         "phone": data.phone,
         "service_bays": data.service_bays if data.dealership_type == DealershipType.RV else 0,
         "is_active": True,
+        "custom_roles": [],  # Default empty, admin can add custom roles
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.dealerships.insert_one(doc)
@@ -581,11 +582,17 @@ async def create_dealership(data: DealershipCreate, user: dict = Depends(require
         if existing:
             raise HTTPException(status_code=400, detail="Admin email already registered")
         
+        # Validate admin PIN (must be 4-6 digits)
+        admin_pin = data.admin_pin or "0000"  # Default PIN if not provided
+        if not admin_pin.isdigit() or len(admin_pin) < 4 or len(admin_pin) > 6:
+            raise HTTPException(status_code=400, detail="Admin PIN must be 4-6 digits")
+        
         admin_id = str(uuid.uuid4())
         admin_doc = {
             "id": admin_id,
             "email": data.admin_email,
             "password": hash_password(data.admin_password),
+            "admin_pin": hash_password(admin_pin),  # Store hashed PIN
             "name": data.admin_name or f"{data.name} Admin",
             "role": UserRole.DEALERSHIP_ADMIN,
             "dealership_id": dealership_id,
