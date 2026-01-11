@@ -138,6 +138,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/repairs"
+        element={
+          <ProtectedRoute>
+            <Repairs />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/settings"
         element={
           <ProtectedRoute>
