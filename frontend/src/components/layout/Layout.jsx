@@ -221,17 +221,20 @@ export const Layout = ({ children }) => {
                       Back to KeyFlow
                     </NavLink>
                   ) : (
-                    <NavLink
-                      to="/sales-tracker"
-                      onClick={() => setMenuOpen(false)}
-                      className={({ isActive }) =>
-                        cn('menu-item text-emerald-400', isActive && 'active')
-                      }
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                      Sales Tracker
-                    </NavLink>
+                    /* Sales Tracker SUSPENDED - Hidden from mobile menu */
+                    null
                   )}
+                  {/* Needs Attention link */}
+                  <NavLink
+                    to="/repairs"
+                    onClick={() => setMenuOpen(false)}
+                    className={({ isActive }) =>
+                      cn('menu-item text-amber-400', isActive && 'active')
+                    }
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    Needs Attention
+                  </NavLink>
                 </div>
 
                 {(isDealershipAdmin || isOwner) && (
