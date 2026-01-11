@@ -1167,6 +1167,11 @@ async def create_key(data: KeyCreate, user: dict = Depends(require_role(UserRole
         "status": KeyStatus.AVAILABLE,
         "current_checkout": None,
         "is_active": True,
+        # PDI Status - default to NOT_PDI_YET
+        "pdi_status": PDIStatus.NOT_PDI_YET,
+        "pdi_last_updated_at": None,
+        "pdi_last_updated_by_user_id": None,
+        "pdi_last_updated_by_user_name": None,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.keys.insert_one(doc)
