@@ -73,15 +73,30 @@ class AttentionStatus:
 
 # Auth Models
 class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
     name: str
+    pin: str  # 4-6 digit PIN for user login
     role: str = UserRole.USER
     dealership_id: Optional[str] = None
+    # Legacy fields - optional for backwards compatibility
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+    remember_me: bool = False
+
+class AdminPinLogin(BaseModel):
+    """Admin login with PIN only (quick access)"""
+    dealership_id: str
+    pin: str
+    remember_me: bool = False
+
+class UserPinLogin(BaseModel):
+    """User login with name and PIN"""
+    dealership_id: str
+    name: str
+    pin: str
     remember_me: bool = False
 
 class AdminLogin(BaseModel):
@@ -95,7 +110,7 @@ class OwnerLogin(BaseModel):
 
 class UserResponse(BaseModel):
     id: str
-    email: str
+    email: Optional[str] = None
     name: str
     role: str
     dealership_id: Optional[str] = None
