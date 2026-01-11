@@ -1491,6 +1491,97 @@ async def mark_key_fixed(key_id: str, data: KeyMarkFixedRequest, user: dict = De
     key = await db.keys.find_one({"id": key_id}, {"_id": 0})
     return KeyResponse(**key)
 
+# ============ PDI STATUS ENDPOINTS ============
+
+@api_router.put("/keys/{key_id}/pdi-status", response_model=KeyResponse)
+async def update_pdi_status(key_id: str, data: PDIStatusUpdate, user: dict = Depends(get_current_user)):
+    """Update PDI status for a key. All authenticated users can update."""
+    # Validate status
+    if data.status not in VALID_PDI_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid PDI status. Must be one of: {VALID_PDI_STATUSES}")
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    # Check dealership access for non-owners
+    if user["role"] != UserRole.OWNER and key.get("dealership_id") != user.get("dealership_id"):
+        raise HTTPException(status_code=403, detail="Cannot update PDI status for keys in other dealerships")
+    
+    # Get current/previous status (default to NOT_PDI_YET if not set)
+    previous_status = key.get("pdi_status", PDIStatus.NOT_PDI_YET)
+    
+    # If status is the same, don't create audit log - just return current key
+    if previous_status == data.status:
+        return KeyResponse(**key)
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Create audit log entry
+    audit_entry = {
+        "id": str(uuid.uuid4()),
+        "key_id": key_id,
+        "stock_number": key["stock_number"],
+        "dealership_id": key["dealership_id"],
+        "changed_by_user_id": user["id"],
+        "changed_by_user_name": user["name"],
+        "changed_at": now,
+        "previous_status": previous_status,
+        "new_status": data.status,
+        "notes": data.notes
+    }
+    await db.pdi_audit_log.insert_one(audit_entry)
+    
+    # Update key with new PDI status
+    await db.keys.update_one(
+        {"id": key_id},
+        {"$set": {
+            "pdi_status": data.status,
+            "pdi_last_updated_at": now,
+            "pdi_last_updated_by_user_id": user["id"],
+            "pdi_last_updated_by_user_name": user["name"]
+        }}
+    )
+    
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    return KeyResponse(**key)
+
+@api_router.get("/keys/{key_id}/pdi-audit-log", response_model=List[PDIAuditLogResponse])
+async def get_pdi_audit_log(key_id: str, user: dict = Depends(get_current_user)):
+    """Get PDI audit log for a specific key. Admins see all, others see their own changes."""
+    key = await db.keys.find_one({"id": key_id}, {"_id": 0})
+    if not key:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    # Check dealership access
+    if user["role"] != UserRole.OWNER and key.get("dealership_id") != user.get("dealership_id"):
+        raise HTTPException(status_code=403, detail="Cannot view PDI audit log for keys in other dealerships")
+    
+    query = {"key_id": key_id}
+    
+    # Non-admins can only see their own changes (optional restriction)
+    if user["role"] not in [UserRole.OWNER, UserRole.DEALERSHIP_ADMIN]:
+        query["changed_by_user_id"] = user["id"]
+    
+    logs = await db.pdi_audit_log.find(query, {"_id": 0}).sort("changed_at", -1).to_list(100)
+    return [PDIAuditLogResponse(**log) for log in logs]
+
+@api_router.get("/pdi-audit-log", response_model=List[PDIAuditLogResponse])
+async def get_all_pdi_audit_logs(dealership_id: Optional[str] = None, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Get all PDI audit logs for a dealership. Admin only."""
+    query = {}
+    
+    if user["role"] == UserRole.OWNER:
+        if dealership_id:
+            query["dealership_id"] = dealership_id
+    else:
+        query["dealership_id"] = user["dealership_id"]
+    
+    logs = await db.pdi_audit_log.find(query, {"_id": 0}).sort("changed_at", -1).to_list(500)
+    return [PDIAuditLogResponse(**log) for log in logs]
+
+# ============ REPAIR REQUEST ENDPOINTS ============
+
 @api_router.get("/repair-requests", response_model=List[RepairRequestResponse])
 async def get_repair_requests(status: Optional[str] = None, user: dict = Depends(get_current_user)):
     """Get all repair requests for the dealership"""
