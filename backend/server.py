@@ -1071,14 +1071,40 @@ async def checkout_key(key_id: str, data: KeyCheckoutRequest, user: dict = Depen
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
     
-    await db.keys.update_one(
-        {"id": key_id},
-        {"$set": {
-            "status": KeyStatus.CHECKED_OUT, 
-            "current_checkout": checkout_info,
-            "notes_history": notes_history
-        }}
-    )
+    # Handle attention status and images
+    update_data = {
+        "status": KeyStatus.CHECKED_OUT, 
+        "current_checkout": checkout_info,
+        "notes_history": notes_history
+    }
+    
+    # If needs attention is flagged, set status and create repair request
+    if data.needs_attention:
+        update_data["attention_status"] = AttentionStatus.NEEDS_ATTENTION
+        # Store images on the key if provided (up to 3)
+        if data.images:
+            update_data["images"] = data.images[:3]
+        
+        # Create repair request
+        repair_doc = {
+            "id": str(uuid.uuid4()),
+            "key_id": key_id,
+            "stock_number": key["stock_number"],
+            "vehicle_info": f"{key.get('vehicle_year', '')} {key.get('vehicle_make', '')} {key.get('vehicle_model', '')}".strip(),
+            "dealership_id": key["dealership_id"],
+            "reported_by_id": user["id"],
+            "reported_by_name": user["name"],
+            "notes": data.notes or "Needs attention",
+            "images": data.images[:3] if data.images else [],
+            "status": "pending",
+            "reported_at": datetime.now(timezone.utc).isoformat(),
+            "fixed_by_id": None,
+            "fixed_by_name": None,
+            "fixed_at": None
+        }
+        await db.repair_requests.insert_one(repair_doc)
+    
+    await db.keys.update_one({"id": key_id}, {"$set": update_data})
     
     # Log checkout history
     history_doc = {
