@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../lib/auth';
-import { dealershipApi, alertApi } from '../lib/api';
+import { dealershipApi, alertApi, authApi } from '../lib/api';
 import { Layout } from '../components/layout/Layout';
 import {
   Settings as SettingsIcon,
@@ -11,12 +11,20 @@ import {
   Image,
   Check,
   AlertCircle,
+  Lock,
+  Users,
+  Plus,
+  X,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
 import { toast } from 'sonner';
+import api from '../lib/api';
 
 const PRESET_COLORS = [
   { name: 'Cyan', primary: '#22d3ee', secondary: '#0891b2' },
@@ -29,13 +37,24 @@ const PRESET_COLORS = [
   { name: 'Green', primary: '#22c55e', secondary: '#16a34a' },
 ];
 
+const STANDARD_ROLES = [
+  { id: 'sales', name: 'Sales' },
+  { id: 'service', name: 'Service' },
+  { id: 'delivery', name: 'Delivery' },
+  { id: 'porter', name: 'Porter' },
+  { id: 'lot_tech', name: 'Lot Tech' },
+];
+
 const Settings = () => {
   const { user, isDealershipAdmin, isOwner, isDemo } = useAuth();
   const [dealership, setDealership] = useState(null);
   const [alerts, setAlerts] = useState([]);
+  const [customRoles, setCustomRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoPreviewError, setLogoPreviewError] = useState(false);
+  const [showPinChange, setShowPinChange] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
   
   const [form, setForm] = useState({
     logo_url: '',
@@ -43,6 +62,15 @@ const Settings = () => {
     secondary_color: '#0891b2',
     alert_minutes: 30,
   });
+
+  const [pinForm, setPinForm] = useState({
+    currentPin: '',
+    newPin: '',
+    confirmPin: '',
+  });
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
+  const [savingPin, setSavingPin] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -55,6 +83,7 @@ const Settings = () => {
       if (dealershipRes.data.length > 0) {
         const d = dealershipRes.data[0];
         setDealership(d);
+        setCustomRoles(d.custom_roles || []);
         // Load settings from dealership data
         setForm({
           logo_url: d.logo_url || '',
@@ -129,6 +158,75 @@ const Settings = () => {
     }
   };
 
+  const handlePinChange = async (e) => {
+    e.preventDefault();
+    
+    if (pinForm.newPin !== pinForm.confirmPin) {
+      toast.error('New PINs do not match');
+      return;
+    }
+    
+    if (pinForm.newPin.length < 4 || pinForm.newPin.length > 6) {
+      toast.error('PIN must be 4-6 digits');
+      return;
+    }
+    
+    if (!/^\d+$/.test(pinForm.newPin)) {
+      toast.error('PIN must contain only numbers');
+      return;
+    }
+
+    setSavingPin(true);
+    try {
+      if (isDealershipAdmin) {
+        await authApi.changeAdminPin(pinForm.currentPin, pinForm.newPin);
+      } else {
+        await authApi.changePin(pinForm.currentPin, pinForm.newPin);
+      }
+      toast.success('PIN changed successfully');
+      setPinForm({ currentPin: '', newPin: '', confirmPin: '' });
+      setShowPinChange(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to change PIN');
+    } finally {
+      setSavingPin(false);
+    }
+  };
+
+  const handleAddRole = async () => {
+    if (!newRoleName.trim()) return;
+    
+    // Check if role already exists
+    const existingStandard = STANDARD_ROLES.find(r => r.name.toLowerCase() === newRoleName.toLowerCase());
+    const existingCustom = customRoles.find(r => r.toLowerCase() === newRoleName.toLowerCase());
+    
+    if (existingStandard || existingCustom) {
+      toast.error('This role already exists');
+      return;
+    }
+
+    try {
+      await api.post(`/dealerships/${dealership.id}/roles`, { name: newRoleName.trim() });
+      setCustomRoles([...customRoles, newRoleName.trim()]);
+      setNewRoleName('');
+      toast.success(`Role "${newRoleName}" added`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to add role');
+    }
+  };
+
+  const handleRemoveRole = async (roleName) => {
+    if (!window.confirm(`Remove the "${roleName}" role?`)) return;
+
+    try {
+      await api.delete(`/dealerships/${dealership.id}/roles/${encodeURIComponent(roleName)}`);
+      setCustomRoles(customRoles.filter(r => r !== roleName));
+      toast.success(`Role "${roleName}" removed`);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to remove role');
+    }
+  };
+
   const handleColorSelect = (color) => {
     setForm({
       ...form,
@@ -200,6 +298,193 @@ const Settings = () => {
               </p>
             </div>
           </div>
+        )}
+
+        {/* PIN Management Section */}
+        {(isDealershipAdmin || user?.role) && (
+          <Card className="bg-[#111113] border-[#1f1f23]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Lock className="w-5 h-5 text-cyan-400" />
+                PIN Security
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!showPinChange ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-300">Your login PIN</p>
+                    <p className="text-xs text-slate-500">Change your PIN for secure access</p>
+                  </div>
+                  <Button
+                    onClick={() => setShowPinChange(true)}
+                    variant="outline"
+                    className="border-white/20 text-white hover:bg-white/10"
+                    data-testid="change-pin-btn"
+                  >
+                    <Lock className="w-4 h-4 mr-2" />
+                    Change PIN
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handlePinChange} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-300">Current PIN</Label>
+                    <div className="relative">
+                      <Input
+                        type={showCurrentPin ? 'text' : 'password'}
+                        value={pinForm.currentPin}
+                        onChange={(e) => setPinForm({ ...pinForm, currentPin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                        placeholder="••••••"
+                        className="bg-white/5 border-white/10 text-white text-center text-xl tracking-[0.3em] font-mono"
+                        maxLength={6}
+                        data-testid="current-pin-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPin(!showCurrentPin)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                      >
+                        {showCurrentPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-300">New PIN (4-6 digits)</Label>
+                    <div className="relative">
+                      <Input
+                        type={showNewPin ? 'text' : 'password'}
+                        value={pinForm.newPin}
+                        onChange={(e) => setPinForm({ ...pinForm, newPin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                        placeholder="••••••"
+                        className="bg-white/5 border-white/10 text-white text-center text-xl tracking-[0.3em] font-mono"
+                        maxLength={6}
+                        data-testid="new-pin-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPin(!showNewPin)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                      >
+                        {showNewPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-300">Confirm New PIN</Label>
+                    <Input
+                      type="password"
+                      value={pinForm.confirmPin}
+                      onChange={(e) => setPinForm({ ...pinForm, confirmPin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                      placeholder="••••••"
+                      className="bg-white/5 border-white/10 text-white text-center text-xl tracking-[0.3em] font-mono"
+                      maxLength={6}
+                      data-testid="confirm-pin-input"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowPinChange(false);
+                        setPinForm({ currentPin: '', newPin: '', confirmPin: '' });
+                      }}
+                      className="flex-1 border-white/20 text-white hover:bg-white/10"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={savingPin || pinForm.newPin.length < 4 || pinForm.newPin !== pinForm.confirmPin}
+                      className="flex-1 btn-primary"
+                      data-testid="save-pin-btn"
+                    >
+                      {savingPin ? 'Saving...' : 'Save PIN'}
+                    </Button>
+                  </div>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* User Roles Section (Admin only) */}
+        {(isDealershipAdmin || isOwner) && (
+          <Card className="bg-[#111113] border-[#1f1f23]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Users className="w-5 h-5 text-cyan-400" />
+                User Roles
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-400">
+                Manage the roles available when creating users
+              </p>
+              
+              {/* Standard Roles */}
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-500">Standard Roles (cannot be removed)</Label>
+                <div className="flex flex-wrap gap-2">
+                  {STANDARD_ROLES.map((role) => (
+                    <Badge 
+                      key={role.id} 
+                      className="bg-slate-700/50 text-slate-300 border-slate-600"
+                    >
+                      {role.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Roles */}
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-500">Custom Roles</Label>
+                <div className="flex flex-wrap gap-2">
+                  {customRoles.length === 0 ? (
+                    <p className="text-xs text-slate-500">No custom roles added</p>
+                  ) : (
+                    customRoles.map((role) => (
+                      <Badge 
+                        key={role} 
+                        className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 pr-1"
+                      >
+                        {role}
+                        <button
+                          onClick={() => handleRemoveRole(role)}
+                          className="ml-2 hover:text-red-400"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Add New Role */}
+              <div className="flex gap-2">
+                <Input
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  placeholder="New role name..."
+                  className="bg-white/5 border-white/10 text-white flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddRole()}
+                  data-testid="new-role-input"
+                />
+                <Button
+                  onClick={handleAddRole}
+                  disabled={!newRoleName.trim()}
+                  className="btn-primary"
+                  data-testid="add-role-btn"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Role
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Branding Section */}
