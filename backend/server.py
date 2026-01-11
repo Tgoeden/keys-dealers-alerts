@@ -1484,8 +1484,12 @@ async def move_to_bay(key_id: str, data: BayMoveRequest, user: dict = Depends(ge
 
 # ============ REPAIR REQUEST ENDPOINTS ============
 
+class FlagAttentionRequest(BaseModel):
+    notes: str
+    images: Optional[List[str]] = []
+
 @api_router.post("/keys/{key_id}/flag-attention")
-async def flag_key_attention(key_id: str, notes: str, images: List[str] = [], user: dict = Depends(get_current_user)):
+async def flag_key_attention(key_id: str, data: FlagAttentionRequest, user: dict = Depends(get_current_user)):
     """Flag a key as needing attention without checking it out. Any user can do this."""
     key = await db.keys.find_one({"id": key_id}, {"_id": 0})
     if not key:
@@ -1500,7 +1504,7 @@ async def flag_key_attention(key_id: str, notes: str, images: List[str] = [], us
     # Update key attention status
     update_data = {
         "attention_status": AttentionStatus.NEEDS_ATTENTION,
-        "images": images[:3] if images else key.get("images", [])  # Keep existing or use new, max 3
+        "images": data.images[:3] if data.images else key.get("images", [])  # Keep existing or use new, max 3
     }
     
     await db.keys.update_one({"id": key_id}, {"$set": update_data})
@@ -1514,8 +1518,8 @@ async def flag_key_attention(key_id: str, notes: str, images: List[str] = [], us
         "dealership_id": key["dealership_id"],
         "reported_by_id": user["id"],
         "reported_by_name": user["name"],
-        "notes": notes,
-        "images": images[:3] if images else [],
+        "notes": data.notes,
+        "images": data.images[:3] if data.images else [],
         "status": "pending",
         "reported_at": now.isoformat(),
         "fixed_by_id": None,
@@ -1527,11 +1531,11 @@ async def flag_key_attention(key_id: str, notes: str, images: List[str] = [], us
     # Add to notes history
     note_entry = {
         "type": "attention_flagged",
-        "notes": notes,
+        "notes": data.notes,
         "user_id": user["id"],
         "user_name": user["name"],
         "timestamp": now.isoformat(),
-        "images": images[:3] if images else []
+        "images": data.images[:3] if data.images else []
     }
     await db.keys.update_one(
         {"id": key_id},
