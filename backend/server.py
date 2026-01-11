@@ -557,6 +557,59 @@ async def get_demo_limits(user: dict = Depends(get_current_user)):
         "can_add_users": user_count < DEMO_MAX_USERS
     }
 
+@api_router.post("/auth/admin-login", response_model=TokenResponse)
+async def admin_login(data: AdminLogin):
+    """Admin login with email and PIN"""
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if user["role"] != UserRole.DEALERSHIP_ADMIN:
+        raise HTTPException(status_code=401, detail="This login is for admins only")
+    
+    # Verify PIN
+    admin_pin = user.get("admin_pin")
+    if not admin_pin:
+        raise HTTPException(status_code=401, detail="Admin PIN not set. Contact owner.")
+    
+    if not verify_password(data.pin, admin_pin):
+        raise HTTPException(status_code=401, detail="Invalid PIN")
+    
+    token = create_token(user["id"], user["email"], user["role"], user.get("dealership_id"), data.remember_me)
+    user_response = UserResponse(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        role=user["role"],
+        dealership_id=user.get("dealership_id"),
+        created_at=user["created_at"]
+    )
+    return TokenResponse(access_token=token, user=user_response)
+
+@api_router.post("/auth/change-admin-pin")
+async def change_admin_pin(data: AdminPinChange, user: dict = Depends(require_role(UserRole.DEALERSHIP_ADMIN))):
+    """Allow admin to change their PIN"""
+    db_user = await db.users.find_one({"id": user["id"]}, {"_id": 0})
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current PIN
+    current_pin_hash = db_user.get("admin_pin")
+    if current_pin_hash and not verify_password(data.current_pin, current_pin_hash):
+        raise HTTPException(status_code=401, detail="Current PIN is incorrect")
+    
+    # Validate new PIN
+    if not data.new_pin.isdigit() or len(data.new_pin) < 4 or len(data.new_pin) > 6:
+        raise HTTPException(status_code=400, detail="PIN must be 4-6 digits")
+    
+    # Update PIN
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"admin_pin": hash_password(data.new_pin)}}
+    )
+    
+    return {"message": "PIN changed successfully"}
+
 # ============ DEALERSHIP ENDPOINTS ============
 
 @api_router.post("/dealerships", response_model=DealershipResponse)
