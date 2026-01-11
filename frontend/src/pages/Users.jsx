@@ -140,19 +140,34 @@ const Users = () => {
     const searchLower = search.toLowerCase();
     return (
       u.name.toLowerCase().includes(searchLower) ||
-      u.email.toLowerCase().includes(searchLower)
+      (u.email && u.email.toLowerCase().includes(searchLower))
     );
   });
 
   const getRoleBadgeStyle = (role) => {
     switch (role) {
       case 'owner':
-        return 'bg-purple-100 text-purple-700';
+        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       case 'dealership_admin':
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
+      case 'sales':
+        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+      case 'service':
+        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+      case 'delivery':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'porter':
+        return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
+      case 'lot_tech':
+        return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
       default:
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
     }
+  };
+
+  const formatRoleName = (role) => {
+    if (!role) return 'User';
+    return role.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   const canAddUsers = !isDemo || (demoLimits?.can_add_users ?? true);
