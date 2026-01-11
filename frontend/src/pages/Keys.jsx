@@ -438,7 +438,7 @@ const getPDIStatusInfo = (status) => {
   return PDI_STATUSES.find(s => s.value === status) || PDI_STATUSES[0];
 };
 
-const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick, onPDIUpdate }) => {
+const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick, onPDIUpdate, onFlagAttention }) => {
   const isCheckedOut = keyData.status === 'checked_out';
   const checkout = keyData.current_checkout;
   const isNew = keyData.condition === 'new';
@@ -474,7 +474,7 @@ const KeyCard = ({ keyData, isRV, onCheckout, onReturn, onViewNotes, onPDIClick,
 
   return (
     <div
-      className={`key-card ${isCheckedOut ? 'checked-out' : 'available'} ${needsAttention ? 'ring-2 ring-red-500/50' : ''}`}
+      className={`key-card relative ${isCheckedOut ? 'checked-out' : 'available'} ${needsAttention ? 'ring-2 ring-red-500/50' : ''}`}
       data-testid={`key-card-${keyData.stock_number}`}
     >
       <div className="flex items-start justify-between mb-3 gap-2">
