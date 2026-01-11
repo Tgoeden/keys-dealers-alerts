@@ -115,6 +115,28 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
+  const adminPinLogin = async (dealershipId, pin, rememberMe = false) => {
+    const res = await authApi.adminPinLogin(dealershipId, pin, rememberMe);
+    const { access_token, user: userData } = res.data;
+    localStorage.setItem('keyflow_token', access_token);
+    localStorage.setItem('keyflow_user', JSON.stringify(userData));
+    localStorage.setItem('keyflow_remember_me', rememberMe.toString());
+    updateLastActivity();
+    setUser(userData);
+    return userData;
+  };
+
+  const userPinLogin = async (dealershipId, name, pin, rememberMe = false) => {
+    const res = await authApi.userPinLogin(dealershipId, name, pin, rememberMe);
+    const { access_token, user: userData } = res.data;
+    localStorage.setItem('keyflow_token', access_token);
+    localStorage.setItem('keyflow_user', JSON.stringify(userData));
+    localStorage.setItem('keyflow_remember_me', rememberMe.toString());
+    updateLastActivity();
+    setUser(userData);
+    return userData;
+  };
+
   const demoLogin = async () => {
     const res = await authApi.demoLogin();
     const { access_token, user: userData } = res.data;
