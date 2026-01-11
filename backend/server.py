@@ -715,6 +715,16 @@ async def change_admin_pin(data: AdminPinChange, user: dict = Depends(require_ro
     
     return {"message": "PIN changed successfully"}
 
+# Get all dealerships for login selection (public endpoint)
+@api_router.get("/dealerships/public")
+async def get_public_dealerships():
+    """Get list of dealerships for login selection (public, no auth required)"""
+    dealerships = await db.dealerships.find(
+        {"is_active": True},
+        {"_id": 0, "id": 1, "name": 1}
+    ).to_list(100)
+    return dealerships
+
 # ============ DEALERSHIP ENDPOINTS ============
 
 @api_router.post("/dealerships", response_model=DealershipResponse)
