@@ -63,6 +63,18 @@ export const userApi = {
   delete: (id) => api.delete(`/users/${id}`),
 };
 
+// Image upload
+export const uploadApi = {
+  uploadImage: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  uploadImageBase64: (imageData) => api.post('/upload-image-base64', { image: imageData }),
+};
+
 // Invites
 export const inviteApi = {
   getAll: (dealershipId) => api.get('/invites', { params: { dealership_id: dealershipId } }),
