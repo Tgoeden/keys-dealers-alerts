@@ -117,6 +117,7 @@ class DealershipCreate(BaseModel):
     admin_email: Optional[str] = None
     admin_password: Optional[str] = None
     admin_name: Optional[str] = None
+    admin_pin: Optional[str] = None  # PIN for admin access (4-6 digits)
 
 class DealershipUpdate(BaseModel):
     name: Optional[str] = None
@@ -128,6 +129,7 @@ class DealershipUpdate(BaseModel):
     logo_url: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
+    custom_roles: Optional[List[str]] = None  # Custom user role names
 
 class DealershipResponse(BaseModel):
     id: str
@@ -140,6 +142,7 @@ class DealershipResponse(BaseModel):
     logo_url: Optional[str] = None
     primary_color: Optional[str] = "#22d3ee"
     secondary_color: Optional[str] = "#0891b2"
+    custom_roles: Optional[List[str]] = []  # Custom user role names
     created_at: str
 
 # Key Models
