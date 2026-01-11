@@ -3,8 +3,8 @@ import { authApi } from './api';
 
 const AuthContext = createContext(null);
 
-// Inactivity timeout: 5 hours in milliseconds
-const INACTIVITY_TIMEOUT = 5 * 60 * 60 * 1000;
+// Inactivity timeout: 6 hours in milliseconds (per user requirement)
+const INACTIVITY_TIMEOUT = 6 * 60 * 60 * 1000;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -19,6 +19,10 @@ export const AuthProvider = ({ children }) => {
   const checkInactivity = useCallback(() => {
     const lastActivity = localStorage.getItem('keyflow_last_activity');
     const token = localStorage.getItem('keyflow_token');
+    const rememberMe = localStorage.getItem('keyflow_remember_me') === 'true';
+    
+    // Skip inactivity check if "remember me" is enabled
+    if (rememberMe) return false;
     
     if (token && lastActivity) {
       const timeSinceLastActivity = Date.now() - parseInt(lastActivity, 10);
