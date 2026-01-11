@@ -692,6 +692,65 @@ async def delete_dealership(dealership_id: str, user: dict = Depends(require_rol
         raise HTTPException(status_code=404, detail="Dealership not found")
     return {"message": "Dealership deleted"}
 
+@api_router.get("/dealerships/{dealership_id}/roles")
+async def get_dealership_roles(dealership_id: str, user: dict = Depends(get_current_user)):
+    """Get available user roles for a dealership (standard + custom)"""
+    dealership = await db.dealerships.find_one({"id": dealership_id}, {"_id": 0})
+    if not dealership:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    
+    # Standard roles
+    standard_roles = [
+        {"id": "sales", "name": "Sales"},
+        {"id": "service", "name": "Service"},
+        {"id": "delivery", "name": "Delivery"},
+        {"id": "porter", "name": "Porter"},
+        {"id": "lot_tech", "name": "Lot Tech"},
+    ]
+    
+    # Custom roles from dealership
+    custom_roles = [{"id": r.lower().replace(" ", "_"), "name": r} for r in dealership.get("custom_roles", [])]
+    
+    return {"standard_roles": standard_roles, "custom_roles": custom_roles}
+
+@api_router.post("/dealerships/{dealership_id}/roles")
+async def add_custom_role(dealership_id: str, data: CustomRoleCreate, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Add a custom user role to a dealership (admin only)"""
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and dealership_id != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot modify other dealerships")
+    
+    dealership = await db.dealerships.find_one({"id": dealership_id}, {"_id": 0})
+    if not dealership:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    
+    custom_roles = dealership.get("custom_roles", [])
+    if data.name in custom_roles:
+        raise HTTPException(status_code=400, detail="Role already exists")
+    
+    custom_roles.append(data.name)
+    await db.dealerships.update_one({"id": dealership_id}, {"$set": {"custom_roles": custom_roles}})
+    
+    return {"message": f"Role '{data.name}' added", "custom_roles": custom_roles}
+
+@api_router.delete("/dealerships/{dealership_id}/roles/{role_name}")
+async def remove_custom_role(dealership_id: str, role_name: str, user: dict = Depends(require_role(UserRole.OWNER, UserRole.DEALERSHIP_ADMIN))):
+    """Remove a custom user role from a dealership (admin only)"""
+    if user["role"] == UserRole.DEALERSHIP_ADMIN and dealership_id != user["dealership_id"]:
+        raise HTTPException(status_code=403, detail="Cannot modify other dealerships")
+    
+    dealership = await db.dealerships.find_one({"id": dealership_id}, {"_id": 0})
+    if not dealership:
+        raise HTTPException(status_code=404, detail="Dealership not found")
+    
+    custom_roles = dealership.get("custom_roles", [])
+    if role_name not in custom_roles:
+        raise HTTPException(status_code=404, detail="Role not found")
+    
+    custom_roles.remove(role_name)
+    await db.dealerships.update_one({"id": dealership_id}, {"$set": {"custom_roles": custom_roles}})
+    
+    return {"message": f"Role '{role_name}' removed", "custom_roles": custom_roles}
+
 # ============ INVITE TOKEN ENDPOINTS ============
 
 @api_router.post("/invites", response_model=InviteTokenResponse)
