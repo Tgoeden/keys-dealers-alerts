@@ -92,7 +92,7 @@ export const Layout = ({ children }) => {
     <div className="app-container">
       {/* Top Navigation Bar */}
       <header className="top-nav">
-        {/* Logo + Back to KeyFlow button (when in Sales Tracker) */}
+        {/* Logo */}
         <div className="flex items-center gap-3">
           <div 
             className="flex items-center gap-3 cursor-pointer select-none"
@@ -101,19 +101,6 @@ export const Layout = ({ children }) => {
           >
             <img src={LOGO_URL} alt="KeyFlow" className="h-8 w-auto" />
           </div>
-          
-          {/* Back to KeyFlow button - shown next to logo when in Sales Tracker */}
-          {location.pathname === '/sales-tracker' && (
-            <Button
-              onClick={() => navigate('/keys')}
-              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3 py-1.5 rounded-lg text-sm"
-              data-testid="back-to-keyflow-btn"
-            >
-              <Key className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to KeyFlow</span>
-              <span className="sm:hidden">KeyFlow</span>
-            </Button>
-          )}
         </div>
 
         {/* Center - Current Page + Navigation */}
