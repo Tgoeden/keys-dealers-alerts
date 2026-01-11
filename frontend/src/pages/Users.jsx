@@ -341,87 +341,127 @@ const Users = () => {
 const AddUserModal = ({ open, onClose, onSubmit, dealerships, isOwner, defaultDealershipId }) => {
   const [form, setForm] = useState({
     name: '',
-    email: '',
-    password: '',
-    role: 'user',
+    pin: '',
+    role: 'sales',
     dealership_id: defaultDealershipId || '',
   });
+  const [customRoles, setCustomRoles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showPin, setShowPin] = useState(false);
 
   useEffect(() => {
     setForm((prev) => ({ ...prev, dealership_id: defaultDealershipId || '' }));
   }, [defaultDealershipId]);
 
+  // Fetch custom roles when dealership changes
+  useEffect(() => {
+    const fetchRoles = async () => {
+      if (form.dealership_id) {
+        try {
+          const res = await api.get(`/dealerships/${form.dealership_id}/roles`);
+          setCustomRoles(res.data.custom_roles || []);
+        } catch (err) {
+          console.error('Failed to fetch roles:', err);
+        }
+      }
+    };
+    fetchRoles();
+  }, [form.dealership_id]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate PIN
+    if (!/^\d{4,6}$/.test(form.pin)) {
+      toast.error('PIN must be 4-6 digits');
+      return;
+    }
+
     setLoading(true);
     await onSubmit(form);
     setLoading(false);
-    setForm({ name: '', email: '', password: '', role: 'user', dealership_id: defaultDealershipId || '' });
+    setForm({ name: '', pin: '', role: 'sales', dealership_id: defaultDealershipId || '' });
   };
+
+  const allRoles = [
+    ...STANDARD_ROLES,
+    ...customRoles.map(r => ({ id: r.toLowerCase().replace(/\s+/g, '_'), name: r }))
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent data-testid="add-user-modal">
+      <DialogContent className="bg-[#111113] border-[#1f1f23]" data-testid="add-user-modal">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle className="text-white">Add New User</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Full Name *</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="John Smith"
-              required
-              data-testid="add-user-name"
-            />
+            <Label className="text-slate-300">Full Name *</Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="John Smith"
+                required
+                className="pl-10 bg-white/5 border-white/10 text-white"
+                data-testid="add-user-name"
+              />
+            </div>
+            <p className="text-xs text-slate-500">This is how they'll sign in - name must be unique</p>
           </div>
+
           <div className="space-y-2">
-            <Label>Email *</Label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="john@dealership.com"
-              required
-              data-testid="add-user-email"
-            />
+            <Label className="text-slate-300">PIN (4-6 digits) *</Label>
+            <div className="relative">
+              <Input
+                type={showPin ? 'text' : 'password'}
+                value={form.pin}
+                onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder="••••••"
+                required
+                className="bg-white/5 border-white/10 text-white text-center text-xl tracking-[0.3em] font-mono"
+                maxLength={6}
+                data-testid="add-user-pin"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+              >
+                {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">User will sign in with name + PIN</p>
           </div>
+
           <div className="space-y-2">
-            <Label>Password *</Label>
-            <Input
-              type="password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="••••••••"
-              required
-              data-testid="add-user-password"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Role *</Label>
+            <Label className="text-slate-300">Role *</Label>
             <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-              <SelectTrigger data-testid="add-user-role">
+              <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="add-user-role">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Sales Staff</SelectItem>
-                <SelectItem value="dealership_admin">Dealership Admin</SelectItem>
+              <SelectContent className="bg-[#111113] border-[#1f1f23]">
+                {allRoles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
+
           {isOwner && (
             <div className="space-y-2">
-              <Label>Dealership *</Label>
+              <Label className="text-slate-300">Dealership *</Label>
               <Select
                 value={form.dealership_id}
                 onValueChange={(v) => setForm({ ...form, dealership_id: v })}
               >
-                <SelectTrigger data-testid="add-user-dealership">
+                <SelectTrigger className="bg-white/5 border-white/10 text-white" data-testid="add-user-dealership">
                   <SelectValue placeholder="Select dealership" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#111113] border-[#1f1f23]">
                   {dealerships.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name}
@@ -431,14 +471,20 @@ const AddUserModal = ({ open, onClose, onSubmit, dealerships, isOwner, defaultDe
               </Select>
             </div>
           )}
+
           <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="flex-1 border-white/20 text-white hover:bg-white/10" 
+              onClick={onClose}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1"
-              disabled={loading || (!isOwner && !form.dealership_id)}
+              className="flex-1 btn-primary"
+              disabled={loading || !form.name || form.pin.length < 4 || (!isOwner && !form.dealership_id)}
               data-testid="add-user-submit"
             >
               {loading ? 'Creating...' : 'Create User'}
